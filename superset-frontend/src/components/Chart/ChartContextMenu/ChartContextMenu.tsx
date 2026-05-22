@@ -27,7 +27,7 @@ import {
   useState,
 } from 'react';
 import ReactDOM from 'react-dom';
-import { useDispatch, useSelector } from 'react-redux';
+import { useDispatch } from 'react-redux';
 import { t } from '@apache-superset/core/translation';
 import {
   Behavior,
@@ -42,7 +42,7 @@ import {
   QueryFormData,
 } from '@superset-ui/core';
 import { useTheme } from '@apache-superset/core/theme';
-import { RootState } from 'src/dashboard/types';
+import { useDashboardInfoStore } from 'src/dashboard/stores';
 import { MenuItem } from '@superset-ui/core/components/Menu';
 import { usePermissions } from 'src/hooks/usePermissions';
 import { Dropdown } from '@superset-ui/core/components';
@@ -98,12 +98,10 @@ const ChartContextMenu = (
   const theme = useTheme();
   const { canDrillToDetail, canDrillBy, canDownload } = usePermissions();
 
-  const crossFiltersEnabled = useSelector<RootState, boolean>(
-    ({ dashboardInfo }) => dashboardInfo.crossFiltersEnabled,
+  const crossFiltersEnabled = useDashboardInfoStore(
+    s => s.dashboardInfo.crossFiltersEnabled,
   );
-  const dashboardId = useSelector<RootState, number>(
-    ({ dashboardInfo }) => dashboardInfo.id,
-  );
+  const dashboardId = useDashboardInfoStore(s => s.dashboardInfo.id);
 
   const [modalFilters, setFilters] = useState<BinaryQueryObjectFilterClause[]>(
     [],

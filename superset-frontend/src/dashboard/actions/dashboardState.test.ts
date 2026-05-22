@@ -37,13 +37,19 @@ import {
   fetchFaveStar,
   saveFaveStar,
   savePublished,
+  setActiveTab,
+  SET_ACTIVE_TAB,
 } from 'src/dashboard/actions/dashboardState';
 import { refreshChart } from 'src/components/Chart/chartAction';
-import { UPDATE_COMPONENTS_PARENTS_LIST } from 'src/dashboard/actions/dashboardLayout';
 import { ADD_TOAST } from 'src/components/MessageToasts/actions';
 import { ToastType } from 'src/components/MessageToasts/types';
 import {
-  DASHBOARD_GRID_ID,
+  useDashboardLayoutStore,
+  useDashboardStateStore,
+  useDashboardInfoStore,
+} from 'src/dashboard/stores';
+import type { DashboardInfo, DashboardLayout } from 'src/dashboard/types';
+import {
   SAVE_TYPE_OVERWRITE,
   SAVE_TYPE_OVERWRITE_CONFIRMED,
   SAVE_TYPE_NEWDASHBOARD,
@@ -54,6 +60,8 @@ import {
 } from 'spec/fixtures/mockSliceEntities';
 import { emptyFilters } from 'spec/fixtures/mockDashboardFilters';
 import mockDashboardData from 'spec/fixtures/mockDashboardData';
+import { queryClient } from 'src/queries/queryClient';
+import { dashboardKeys } from 'src/dashboard/queries/keys';
 import { navigateTo } from 'src/utils/navigationUtils';
 
 jest.mock('@superset-ui/core', () => ({
@@ -127,6 +135,9 @@ describe('dashboardState actions', () => {
 
   function setup(stateOverrides: Record<string, unknown> = {}) {
     const state = { ...mockState, ...stateOverrides };
+    useDashboardInfoStore.setState({
+      dashboardInfo: (state.dashboardInfo || {}) as DashboardInfo,
+    });
     const getState = jest.fn(() => state) as unknown as () => any;
     const dispatch = jest.fn();
     return { getState, dispatch, state };
@@ -134,46 +145,31 @@ describe('dashboardState actions', () => {
 
   // eslint-disable-next-line no-restricted-globals -- TODO: Migrate from describe blocks
   describe('saveDashboardRequest', () => {
-    test('should dispatch UPDATE_COMPONENTS_PARENTS_LIST action', () => {
+    test('starts the save by dispatching SAVE_DASHBOARD_STARTED', () => {
       const { getState, dispatch } = setup({
         dashboardState: { hasUnsavedChanges: false },
       });
       const thunk = saveDashboardRequest(newDashboardData, 1, 'save_dash');
       thunk(dispatch, getState);
-      expect(dispatch.mock.calls.length).toBe(2);
-      expect(dispatch.mock.calls[0][0].type).toBe(
-        UPDATE_COMPONENTS_PARENTS_LIST,
-      );
-      expect(dispatch.mock.calls[1][0].type).toBe(SAVE_DASHBOARD_STARTED);
+      expect(dispatch.mock.calls[0][0].type).toBe(SAVE_DASHBOARD_STARTED);
     });
 
-    test('should post dashboard data with updated redux state', () => {
+    test('posts dashboard data with serialized positions on save', () => {
       const { getState, dispatch } = setup({
         dashboardState: { hasUnsavedChanges: false },
       });
+      useDashboardLayoutStore
+        .getState()
+        .setLayout(newDashboardData.positions as any);
 
-      // start with mockDashboardData, it didn't have parents attr
-      expect(
-        (newDashboardData.positions[DASHBOARD_GRID_ID] as any).parents,
-      ).not.toBeDefined();
-
-      // mock redux work: dispatch an event, cause modify redux state
-      const mockParentsList = ['ROOT_ID'];
-      dispatch.mockImplementation(() => {
-        (mockState.dashboardLayout.present[DASHBOARD_GRID_ID] as any).parents =
-          mockParentsList;
-      });
-
-      // call saveDashboardRequest, it should post dashboard data with updated
-      // layout object (with parents attribute)
       const thunk = saveDashboardRequest(newDashboardData, 1, 'save_dash');
       thunk(dispatch, getState);
       expect(postStub.mock.calls.length).toBe(1);
       const { jsonPayload } = postStub.mock.calls[0][0];
       const parsedJsonMetadata = JSON.parse(jsonPayload.json_metadata);
-      expect(
-        parsedJsonMetadata.positions[DASHBOARD_GRID_ID].parents,
-      ).toStrictEqual(mockParentsList);
+      // The whole positions tree must round-trip through save: every component
+      // (incl. its parents, children, and meta) lands in json_metadata.positions.
+      expect(parsedJsonMetadata.positions).toEqual(newDashboardData.positions);
     });
 
     // eslint-disable-next-line no-restricted-globals -- TODO: Migrate from describe blocks
@@ -200,10 +196,17 @@ describe('dashboardState actions', () => {
         expect(getStub.mock.calls.length).toBe(1);
         expect(postStub.mock.calls.length).toBe(0);
         await waitFor(() =>
-          expect(dispatch.mock.calls[2][0].type).toBe(SET_OVERRIDE_CONFIRM),
+          expect(
+            dispatch.mock.calls.some(
+              call => call[0]?.type === SET_OVERRIDE_CONFIRM,
+            ),
+          ).toBe(true),
+        );
+        const overrideConfirmCall = dispatch.mock.calls.find(
+          call => call[0]?.type === SET_OVERRIDE_CONFIRM,
         );
         expect(
-          dispatch.mock.calls[2][0].overwriteConfirmMetadata.dashboardId,
+          overrideConfirmCall?.[0].overwriteConfirmMetadata.dashboardId,
         ).toBe(id);
       });
 
@@ -226,6 +229,71 @@ describe('dashboardState actions', () => {
         const { body } = putStub.mock.calls[0][0];
         expect(body).toBe(JSON.stringify(confirmedDashboardData));
       });
+    });
+
+    test('rejects when the PUT fails so callers can detect save failure', async () => {
+      const { getState, dispatch } = setup({
+        dashboardState: { hasUnsavedChanges: true },
+      });
+      putStub.mockRestore();
+      putStub = jest
+        .spyOn(SupersetClient, 'put')
+        .mockRejectedValue(
+          new Response('500', { status: 500 }) as unknown as Response,
+        );
+
+      const thunk = saveDashboardRequest(
+        newDashboardData,
+        1,
+        SAVE_TYPE_OVERWRITE_CONFIRMED,
+      );
+      await expect(thunk(dispatch, getState)).rejects.toBeDefined();
+      expect(putStub.mock.calls.length).toBe(1);
+    });
+
+    test('invalidates the detail cache on a successful in-place save', async () => {
+      // In-place saves run through this thunk, so detail invalidation lives here
+      // rather than in useSaveDashboard — that keeps OverwriteConfirmModal's
+      // direct dispatch consistent with the mutation wrapper.
+      const id = 192;
+      const { getState, dispatch } = setup({
+        dashboardState: { hasUnsavedChanges: true },
+      });
+      const invalidateSpy = jest.spyOn(queryClient, 'invalidateQueries');
+
+      await saveDashboardRequest(
+        newDashboardData,
+        id,
+        SAVE_TYPE_OVERWRITE_CONFIRMED,
+      )(dispatch, getState);
+
+      expect(invalidateSpy).toHaveBeenCalledWith({
+        queryKey: dashboardKeys.detail(id),
+      });
+      invalidateSpy.mockRestore();
+    });
+
+    test('drops the discard snapshot on an in-place save', async () => {
+      // The snapshot predates the save (its charts/slices/seed are page-load
+      // state), so discard must fall back to a reload instead of reverting.
+      const id = 192;
+      const { getState, dispatch } = setup({
+        dashboardState: { hasUnsavedChanges: true },
+      });
+      queryClient.setQueryData(dashboardKeys.hydrationPayload(id), {
+        dashboardLayout: { present: { OLD: { id: 'OLD' } } },
+        zustandStateSeed: { hasUnsavedChanges: true },
+      });
+
+      await saveDashboardRequest(
+        newDashboardData,
+        id,
+        SAVE_TYPE_OVERWRITE_CONFIRMED,
+      )(dispatch, getState);
+
+      expect(
+        queryClient.getQueryData(dashboardKeys.hydrationPayload(id)),
+      ).toBeUndefined();
     });
 
     test('should navigate to the new dashboard after Save As', async () => {
@@ -273,7 +341,7 @@ describe('dashboardState actions', () => {
       return action;
     };
     const chartIds = [1, 2];
-    const promise = fetchCharts(chartIds, false, 0, 10)(dispatch, getState);
+    const promise = fetchCharts(chartIds, false, 0, 10)(dispatch);
     await promise;
 
     expect(refreshChart).toHaveBeenCalledTimes(chartIds.length);
@@ -295,7 +363,7 @@ describe('dashboardState actions', () => {
       return action;
     };
     const chartIds = [1, 2, 3];
-    const promise = fetchCharts(chartIds, false, 1000, 10)(dispatch, getState);
+    const promise = fetchCharts(chartIds, false, 1000, 10)(dispatch);
 
     jest.runAllTimers();
     await promise;
@@ -326,7 +394,7 @@ describe('dashboardState actions', () => {
       return action;
     };
     const chartIds = [1, 2, 3];
-    const promise = fetchCharts(chartIds, false, 1000, 10)(dispatch, getState);
+    const promise = fetchCharts(chartIds, false, 1000, 10)(dispatch);
 
     jest.runAllTimers();
     await expect(promise).rejects.toThrow('refresh failed');
@@ -410,6 +478,36 @@ describe('dashboardState actions', () => {
     expect(dispatchedTypes).toContain(ON_REFRESH_SUCCESS);
     expect(dispatchedTypes).not.toContain(ON_REFRESH);
     expect(dispatchedTypes).not.toContain(ON_FILTERS_REFRESH);
+  });
+
+  test('setActiveTab restores multi-depth nested inactive tabs', () => {
+    const { getState, dispatch } = setup();
+    useDashboardStateStore.setState({
+      activeTabs: [],
+      inactiveTabs: ['TAB-B', 'TAB-C'],
+    });
+    useDashboardLayoutStore.getState().setLayout({
+      'TAB-A': { id: 'TAB-A', type: 'TAB', parents: ['ROOT_ID', 'TABS-1'] },
+      'TAB-B': {
+        id: 'TAB-B',
+        type: 'TAB',
+        parents: ['ROOT_ID', 'TABS-1', 'TAB-A', 'TABS-2'],
+      },
+      'TAB-C': {
+        id: 'TAB-C',
+        type: 'TAB',
+        parents: ['ROOT_ID', 'TABS-1', 'TAB-A', 'TABS-2', 'TAB-B', 'TABS-3'],
+      },
+    } as unknown as DashboardLayout);
+
+    setActiveTab('TAB-A')(dispatch, getState);
+
+    expect(dispatch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: SET_ACTIVE_TAB,
+        activeTabs: ['TAB-A', 'TAB-B', 'TAB-C'],
+      }),
+    );
   });
 
   // eslint-disable-next-line no-restricted-globals -- TODO: Migrate from describe blocks
@@ -660,6 +758,26 @@ describe('dashboardState actions', () => {
         type: TOGGLE_PUBLISHED,
         isPublished: true,
       });
+    });
+
+    test('drops the in-place discard snapshot so a later discard reloads', async () => {
+      const id = 123;
+      const { getState, dispatch } = setup({
+        dashboardInfo: { id, metadata: {} },
+      });
+      queryClient.setQueryData(dashboardKeys.hydrationPayload(id), {
+        dashboardInfo: { id },
+      });
+      putStub.mockRestore();
+      putStub = jest
+        .spyOn(SupersetClient, 'put')
+        .mockResolvedValue({} as unknown as JsonResponse);
+
+      await savePublished(id, true)(dispatch, getState);
+
+      expect(
+        queryClient.getQueryData(dashboardKeys.hydrationPayload(id)),
+      ).toBeUndefined();
     });
 
     test('does NOT dispatch when the dashboard ID changed before the response resolved', async () => {

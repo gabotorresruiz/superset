@@ -26,7 +26,6 @@ import {
   ChartCustomizationDivider,
 } from '@superset-ui/core';
 import type { FormInstance } from '@superset-ui/core/components';
-import { useDispatch } from 'react-redux';
 import { updateCascadeParentIds } from 'src/dashboard/actions/nativeFilters';
 import type { FiltersConfigFormHandle } from '../FiltersConfigForm/FiltersConfigForm';
 import {
@@ -104,8 +103,6 @@ export function useModalSaveLogic({
   canBeUsedAsDependency,
   resetForm,
 }: ModalSaveLogicParams): ModalSaveLogic {
-  const dispatch = useDispatch();
-
   const cleanDeletedParents = useCallback(
     (values: NativeFiltersForm | null) => {
       const modifiedParentFilters = new Set<string>();
@@ -120,7 +117,7 @@ export function useModalSaveLogic({
             cascadeParentIds &&
             !isEqual(cascadeParentIds, filter.cascadeParentIds)
           ) {
-            dispatch(updateCascadeParentIds(key, cascadeParentIds));
+            updateCascadeParentIds(key, cascadeParentIds);
             modifiedParentFilters.add(key);
           }
 
@@ -158,7 +155,7 @@ export function useModalSaveLogic({
 
       return [updatedFilterConfigMap, modifiedParentFilters] as const;
     },
-    [canBeUsedAsDependency, dispatch, filterConfigMap],
+    [canBeUsedAsDependency, filterConfigMap],
   );
 
   const getItemTitle = useCallback(

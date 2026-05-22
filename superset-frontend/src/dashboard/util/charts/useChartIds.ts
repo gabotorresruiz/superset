@@ -16,8 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useSelector } from 'react-redux';
-import { RootState } from 'src/dashboard/types';
+import { useDashboardStateStore } from 'src/dashboard/stores';
 
-export const useChartIds = () =>
-  useSelector<RootState, number[]>(state => state.dashboardState.sliceIds);
+export const useChartIds = () => useDashboardStateStore(s => s.sliceIds);

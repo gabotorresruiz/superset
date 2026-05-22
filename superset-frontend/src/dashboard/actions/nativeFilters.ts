@@ -26,9 +26,16 @@ import {
   ChartCustomizationDivider,
 } from '@superset-ui/core';
 import { Dispatch } from 'redux';
-import { RootState } from 'src/dashboard/types';
 import { cloneDeep } from 'lodash';
 import { setDataMaskForFilterChangesComplete } from 'src/dataMask/actions';
+import {
+  useNativeFiltersStore,
+  useDashboardInfoStore,
+  type FilterEntry,
+} from 'src/dashboard/stores';
+import { queryClient } from 'src/queries/queryClient';
+import { dashboardKeys } from 'src/dashboard/queries';
+import { dropHydrationSnapshot } from 'src/dashboard/util/rebaselineHydrationDashboardInfo';
 import { HYDRATE_DASHBOARD } from './hydrate';
 import {
   dashboardInfoChanged,
@@ -69,14 +76,13 @@ const isFilterChangesEmpty = (filterChanges: SaveFilterChangesType) =>
   );
 
 export const setFilterConfiguration =
-  (filterChanges: SaveFilterChangesType) =>
-  async (dispatch: Dispatch, getState: () => RootState) => {
+  (filterChanges: SaveFilterChangesType) => async (dispatch: Dispatch) => {
     if (isFilterChangesEmpty(filterChanges)) {
       return;
     }
 
-    const { id } = getState().dashboardInfo;
-    const oldFilters = getState().nativeFilters?.filters;
+    const { id } = useDashboardInfoStore.getState().dashboardInfo;
+    const oldFilters = useNativeFiltersStore.getState().filters as Filters;
 
     dispatch({
       type: SET_NATIVE_FILTERS_CONFIG_BEGIN,
@@ -89,12 +95,18 @@ export const setFilterConfiguration =
     });
     try {
       const response = await updateFilters(filterChanges);
+      useNativeFiltersStore
+        .getState()
+        .setFiltersConfigComplete(response.result as FilterEntry[]);
       dispatch({
         type: SET_NATIVE_FILTERS_CONFIG_COMPLETE,
         filterChanges: response.result,
       });
-      dispatch(nativeFiltersConfigChanged(response.result));
+      nativeFiltersConfigChanged(response.result);
       dispatch(setDataMaskForFilterChangesComplete(filterChanges, oldFilters));
+      queryClient.invalidateQueries({ queryKey: dashboardKeys.detail(id) });
+      // The snapshot predates this persisted filter change; drop it so discard reloads.
+      dropHydrationSnapshot(id);
     } catch (err) {
       dispatch({
         type: SET_NATIVE_FILTERS_CONFIG_FAIL,
@@ -111,18 +123,23 @@ export const setInScopeStatusOfFilters =
       tabsInScope: string[];
     }[],
   ) =>
-  async (dispatch: Dispatch, getState: () => RootState) => {
-    const filters = getState().nativeFilters?.filters;
+  async (dispatch: Dispatch) => {
+    const { filters } = useNativeFiltersStore.getState();
     const filtersWithScopes = filterScopes.map(scope => ({
       ...filters[scope.filterId],
       chartsInScope: scope.chartsInScope,
       tabsInScope: scope.tabsInScope,
     }));
+    useNativeFiltersStore
+      .getState()
+      .setInScopeStatus(filtersWithScopes as FilterEntry[]);
     dispatch({
       type: SET_IN_SCOPE_STATUS_OF_FILTERS,
       filterConfig: filtersWithScopes,
     });
-    const metadata = cloneDeep(getState().dashboardInfo.metadata);
+    const metadata = cloneDeep(
+      useDashboardInfoStore.getState().dashboardInfo.metadata,
+    );
     const filterConfig =
       (metadata.native_filter_configuration as FilterConfiguration) || [];
     const mergedFilterConfig = filterConfig.map(filter => {
@@ -158,91 +175,30 @@ export interface SetBootstrapData {
   data: BootstrapData;
 }
 
-export const SET_FOCUSED_NATIVE_FILTER = 'SET_FOCUSED_NATIVE_FILTER';
-export interface SetFocusedNativeFilter {
-  type: typeof SET_FOCUSED_NATIVE_FILTER;
-  id: string;
+// Focus/hover/cascade are plain Zustand store mutators — call directly.
+export function setFocusedNativeFilter(id: string): void {
+  useNativeFiltersStore.getState().setFocusedFilter(id);
 }
-export const UNSET_FOCUSED_NATIVE_FILTER = 'UNSET_FOCUSED_NATIVE_FILTER';
-export interface UnsetFocusedNativeFilter {
-  type: typeof UNSET_FOCUSED_NATIVE_FILTER;
+export function unsetFocusedNativeFilter(): void {
+  useNativeFiltersStore.getState().unsetFocusedFilter();
 }
 
-export function setFocusedNativeFilter(id: string): SetFocusedNativeFilter {
-  return {
-    type: SET_FOCUSED_NATIVE_FILTER,
-    id,
-  };
+export function setHoveredNativeFilter(id: string): void {
+  useNativeFiltersStore.getState().setHoveredFilter(id);
 }
-export function unsetFocusedNativeFilter(): UnsetFocusedNativeFilter {
-  return {
-    type: UNSET_FOCUSED_NATIVE_FILTER,
-  };
+export function unsetHoveredNativeFilter(): void {
+  useNativeFiltersStore.getState().unsetHoveredFilter();
 }
 
-export const SET_HOVERED_NATIVE_FILTER = 'SET_HOVERED_NATIVE_FILTER';
-export interface SetHoveredNativeFilter {
-  type: typeof SET_HOVERED_NATIVE_FILTER;
-  id: string;
+export function setHoveredChartCustomization(id: string): void {
+  useNativeFiltersStore.getState().setHoveredChartCustomization(id);
 }
-export const UNSET_HOVERED_NATIVE_FILTER = 'UNSET_HOVERED_NATIVE_FILTER';
-export interface UnsetHoveredNativeFilter {
-  type: typeof UNSET_HOVERED_NATIVE_FILTER;
+export function unsetHoveredChartCustomization(): void {
+  useNativeFiltersStore.getState().unsetHoveredChartCustomization();
 }
 
-export function setHoveredNativeFilter(id: string): SetHoveredNativeFilter {
-  return {
-    type: SET_HOVERED_NATIVE_FILTER,
-    id,
-  };
-}
-export function unsetHoveredNativeFilter(): UnsetHoveredNativeFilter {
-  return {
-    type: UNSET_HOVERED_NATIVE_FILTER,
-  };
-}
-
-export const SET_HOVERED_CHART_CUSTOMIZATION =
-  'SET_HOVERED_CHART_CUSTOMIZATION';
-export interface SetHoveredChartCustomization {
-  type: typeof SET_HOVERED_CHART_CUSTOMIZATION;
-  id: string;
-}
-export const UNSET_HOVERED_CHART_CUSTOMIZATION =
-  'UNSET_HOVERED_CHART_CUSTOMIZATION';
-export interface UnsetHoveredChartCustomization {
-  type: typeof UNSET_HOVERED_CHART_CUSTOMIZATION;
-}
-
-export function setHoveredChartCustomization(
-  id: string,
-): SetHoveredChartCustomization {
-  return {
-    type: SET_HOVERED_CHART_CUSTOMIZATION,
-    id,
-  };
-}
-export function unsetHoveredChartCustomization(): UnsetHoveredChartCustomization {
-  return {
-    type: UNSET_HOVERED_CHART_CUSTOMIZATION,
-  };
-}
-
-export const UPDATE_CASCADE_PARENT_IDS = 'UPDATE_CASCADE_PARENT_IDS';
-export interface UpdateCascadeParentIds {
-  type: typeof UPDATE_CASCADE_PARENT_IDS;
-  id: string;
-  parentIds: string[];
-}
-export function updateCascadeParentIds(
-  id: string,
-  parentIds: string[],
-): UpdateCascadeParentIds {
-  return {
-    type: UPDATE_CASCADE_PARENT_IDS,
-    id,
-    parentIds,
-  };
+export function updateCascadeParentIds(id: string, parentIds: string[]): void {
+  useNativeFiltersStore.getState().updateCascadeParentIds(id, parentIds);
 }
 
 export type AnyFilterAction =
@@ -250,11 +206,4 @@ export type AnyFilterAction =
   | SetNativeFiltersConfigComplete
   | SetNativeFiltersConfigFail
   | SetInScopeStatusOfFilters
-  | SetBootstrapData
-  | SetFocusedNativeFilter
-  | UnsetFocusedNativeFilter
-  | SetHoveredNativeFilter
-  | UnsetHoveredNativeFilter
-  | SetHoveredChartCustomization
-  | UnsetHoveredChartCustomization
-  | UpdateCascadeParentIds;
+  | SetBootstrapData;

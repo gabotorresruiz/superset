@@ -29,8 +29,12 @@ import { Menu, MenuItem } from '@superset-ui/core/components/Menu';
 import { getDashboardPermalink } from 'src/utils/urlUtils';
 import EmbedCodeContent from 'src/explore/components/EmbedCodeContent';
 import { ModalTrigger } from '@superset-ui/core/components';
-import { MenuKeys, RootState } from 'src/dashboard/types';
-import { shallowEqual, useSelector } from 'react-redux';
+import { MenuKeys } from 'src/dashboard/types';
+import {
+  useDashboardStateStore,
+  useDashboardSlicesStore,
+} from 'src/dashboard/stores';
+import { useDataMaskStore } from 'src/dataMask/useDataMaskStore';
 import { hasStatefulCharts } from 'src/dashboard/util/chartStateConverter';
 
 export interface ShareMenuItemProps extends ComponentProps<
@@ -77,15 +81,10 @@ export const useShareMenuItems = (props: ShareMenuItemProps): MenuItem => {
   );
   const isEmbedCodeEnabled = isFeatureEnabled(FeatureFlag.EmbeddableCharts);
 
-  const { dataMask, activeTabs, chartStates, sliceEntities } = useSelector(
-    (state: RootState) => ({
-      dataMask: state.dataMask,
-      activeTabs: state.dashboardState.activeTabs,
-      chartStates: state.dashboardState.chartStates,
-      sliceEntities: state.sliceEntities?.slices,
-    }),
-    shallowEqual,
-  );
+  const activeTabs = useDashboardStateStore(s => s.activeTabs);
+  const chartStates = useDashboardStateStore(s => s.chartStates);
+  const sliceEntities = useDashboardSlicesStore(s => s.slices);
+  const dataMask = useDataMaskStore(s => s.dataMask);
 
   async function generateUrl() {
     // Only include chart state for AG Grid tables

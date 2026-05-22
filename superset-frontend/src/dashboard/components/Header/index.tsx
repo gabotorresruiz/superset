@@ -26,7 +26,7 @@ import {
 import { styled, css, SupersetTheme } from '@apache-superset/core/theme';
 import { t } from '@apache-superset/core/translation';
 import { Global } from '@emotion/react';
-import { shallowEqual, useDispatch, useSelector } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { bindActionCreators } from 'redux';
 import { LOG_ACTIONS_TOGGLE_EDIT_DASHBOARD } from 'src/logger/LogUtils';
 import { Icons } from '@superset-ui/core/components/Icons';
@@ -40,7 +40,7 @@ import { findPermission } from 'src/utils/findPermission';
 import { safeStringify } from 'src/utils/safeStringify';
 import Role from 'src/types/Role';
 import Owner from 'src/types/Owner';
-import { DashboardLayout, RootState } from 'src/dashboard/types';
+import { RootState } from 'src/dashboard/types';
 import { UserWithPermissionsAndRoles } from 'src/types/bootstrapTypes';
 import { AlertObject } from 'src/features/alerts/types';
 import PublishedStatus from 'src/dashboard/components/PublishedStatus';
@@ -61,6 +61,8 @@ import {
 } from 'src/features/reports/ReportModal/actions';
 import { PageHeaderWithActions } from '@superset-ui/core/components/PageHeaderWithActions';
 import { useUnsavedChangesPrompt } from 'src/hooks/useUnsavedChangesPrompt';
+import { useConfirmModal } from 'src/hooks/useConfirmModal';
+import { useDiscardChanges, useSaveDashboard } from 'src/dashboard/queries';
 import DashboardEmbedModal from '../EmbeddedModal';
 import OverwriteConfirm from '../OverwriteConfirm';
 import {
@@ -68,13 +70,6 @@ import {
   addSuccessToast,
   addWarningToast,
 } from '../../../components/MessageToasts/actions';
-import {
-  dashboardTitleChanged,
-  redoLayoutAction,
-  undoLayoutAction,
-  updateDashboardTitle,
-  clearDashboardHistory,
-} from '../../actions/dashboardLayout';
 import {
   fetchCharts,
   fetchFaveStar,
@@ -84,11 +79,14 @@ import {
   saveDashboardRequest,
   saveFaveStar,
   savePublished,
-  setEditMode,
-  setMaxUndoHistoryExceeded,
-  setRefreshFrequency,
   setUnsavedChanges,
 } from '../../actions/dashboardState';
+import { useStore } from 'zustand';
+import {
+  useDashboardStateStore,
+  useDashboardLayoutStore,
+  useDashboardInfoStore,
+} from 'src/dashboard/stores';
 import { logEvent } from '../../../logger/actions';
 import { dashboardInfoChanged } from '../../actions/dashboardInfo';
 import { ChartState } from 'src/explore/types';
@@ -113,46 +111,9 @@ type DashboardPropertiesUpdate = {
   title?: string;
 };
 
-type DashboardLayoutStateWithHistory = RootState['dashboardLayout'] & {
-  past: DashboardLayout[];
-  future: DashboardLayout[];
-};
-
-type DashboardInfoState = RootState['dashboardInfo'] & {
-  dash_save_perm?: boolean;
-  dash_share_perm?: boolean;
-  is_managed_externally?: boolean;
-  slug?: string;
-  description?: string;
-  last_modified_time?: number;
-  certified_by?: string;
-  certification_details?: string;
-  roles?: Role[];
-  tags?: TagType[];
-  metadata: RootState['dashboardInfo']['metadata'] & {
-    timed_refresh_immune_slices?: number[];
-    refresh_frequency?: number;
-  };
-};
-
-type DashboardStateWithExtras = RootState['dashboardState'] & {
-  expandedSlices: Record<number, boolean>;
-  shouldPersistRefreshFrequency?: boolean;
-  colorNamespace?: string;
-  isStarred?: boolean;
-  maxUndoHistoryExceeded?: boolean;
-};
-
-type HeaderRootState = Omit<
-  RootState,
-  'dashboardLayout' | 'dashboardInfo' | 'dashboardState' | 'charts' | 'user'
-> & {
-  dashboardLayout: DashboardLayoutStateWithHistory;
-  dashboardInfo: DashboardInfoState;
-  dashboardState: DashboardStateWithExtras;
+type HeaderRootState = Omit<RootState, 'charts' | 'user'> & {
   charts: Record<string, ChartState>;
   user: UserWithPermissionsAndRoles;
-  lastModifiedTime: number;
 };
 
 const extensionsRegistry = getExtensionsRegistry();
@@ -215,9 +176,11 @@ const discardBtnStyle = (theme: SupersetTheme) => css`
   height: ${theme.sizeUnit * 8}px;
 `;
 
-const discardChanges = () => {
+// Module-level reload fallback when an in-place discard is not possible
+// (e.g., user opened the dashboard mid-edit and we don't have a cached
+// hydration payload to restore from).
+const discardChangesViaReload = () => {
   const url = new URL(window.location.href);
-
   url.searchParams.delete('edit');
   window.location.assign(url);
 };
@@ -234,52 +197,37 @@ const Header = (): JSX.Element => {
   const [showingReportModal, setShowingReportModal] = useState(false);
   const [currentReportDeleting, setCurrentReportDeleting] =
     useState<AlertObject | null>(null);
-  const dashboardInfo = useSelector(
-    (state: HeaderRootState) => state.dashboardInfo,
+  const dashboardInfo = useDashboardInfoStore(s => s.dashboardInfo);
+  const layout = useDashboardLayoutStore(s => s.layout);
+  // Undo/redo history lives in the zundo temporal store.
+  const undoLength = useStore(
+    useDashboardLayoutStore.temporal,
+    s => s.pastStates.length,
   );
-  const layout = useSelector(
-    (state: HeaderRootState) => state.dashboardLayout.present,
-  );
-  const undoLength = useSelector(
-    (state: HeaderRootState) => state.dashboardLayout.past.length,
-  );
-  const redoLength = useSelector(
-    (state: HeaderRootState) => state.dashboardLayout.future.length,
+  const redoLength = useStore(
+    useDashboardLayoutStore.temporal,
+    s => s.futureStates.length,
   );
   const user = useSelector((state: HeaderRootState) => state.user);
   const chartIds = useChartIds();
 
-  const {
-    expandedSlices,
-    refreshFrequency,
-    shouldPersistRefreshFrequency,
-    customCss,
-    colorNamespace,
-    colorScheme,
-    isStarred,
-    isPublished,
-    hasUnsavedChanges,
-    maxUndoHistoryExceeded,
-    editMode,
-    lastModifiedTime,
-  } = useSelector(
-    (state: HeaderRootState) => ({
-      expandedSlices: state.dashboardState.expandedSlices ?? {},
-      refreshFrequency: state.dashboardState.refreshFrequency ?? 0,
-      shouldPersistRefreshFrequency:
-        !!state.dashboardState.shouldPersistRefreshFrequency,
-      customCss: state.dashboardInfo.css ?? '',
-      colorNamespace: state.dashboardState.colorNamespace,
-      colorScheme: state.dashboardState.colorScheme,
-      isStarred: !!state.dashboardState.isStarred,
-      isPublished: !!state.dashboardState.isPublished,
-      hasUnsavedChanges: !!state.dashboardState.hasUnsavedChanges,
-      maxUndoHistoryExceeded: !!state.dashboardState.maxUndoHistoryExceeded,
-      editMode: !!state.dashboardState.editMode,
-      lastModifiedTime: state.lastModifiedTime ?? 0,
-    }),
-    shallowEqual,
+  const editMode = useDashboardStateStore(s => s.editMode);
+  const isPublished = useDashboardStateStore(s => !!s.isPublished);
+  const hasUnsavedChanges = useDashboardStateStore(s => s.hasUnsavedChanges);
+  const customCss = useDashboardInfoStore(s => s.dashboardInfo.css ?? '');
+  const expandedSlices = useDashboardStateStore(s => s.expandedSlices);
+  const refreshFrequency = useDashboardStateStore(s => s.refreshFrequency);
+  const shouldPersistRefreshFrequency = useDashboardStateStore(
+    s => s.shouldPersistRefreshFrequency,
   );
+  const colorNamespace = useDashboardStateStore(s => s.colorNamespace);
+  const colorScheme = useDashboardStateStore(s => s.colorScheme);
+  const isStarred = useDashboardStateStore(s => s.isStarred);
+  const maxUndoHistoryExceeded = useDashboardStateStore(
+    s => s.maxUndoHistoryExceeded,
+  );
+  const updatedColorScheme = useDashboardStateStore(s => s.updatedColorScheme);
+  const lastModifiedTime = useDashboardStateStore(s => s.lastModifiedTime);
   const isLoading = useSelector((state: HeaderRootState) =>
     Object.values(state.charts).some(chart => {
       const start = chart.chartUpdateStartTime ?? 0;
@@ -298,6 +246,28 @@ const Header = (): JSX.Element => {
     dashboardInfo.last_modified_time ?? 0,
   );
   const themeId = dashboardInfo.theme ? dashboardInfo.theme.id : null;
+  // Undo/redo + history run on the zundo temporal store, not redux-undo.
+  const onUndo = useCallback(() => {
+    useDashboardLayoutStore.temporal.getState().undo();
+    if (
+      useDashboardLayoutStore.temporal.getState().pastStates.length === 0 &&
+      !maxUndoHistoryExceeded &&
+      !updatedColorScheme
+    ) {
+      useDashboardStateStore.getState().setHasUnsavedChanges(false);
+    }
+  }, [maxUndoHistoryExceeded, updatedColorScheme]);
+  const onRedo = useCallback(() => {
+    useDashboardLayoutStore.temporal.getState().redo();
+    useDashboardStateStore.getState().setHasUnsavedChanges(true);
+  }, []);
+  const clearDashboardHistory = useCallback(() => {
+    useDashboardLayoutStore.temporal.getState().clear();
+  }, []);
+  const updateDashboardTitle = useCallback((text: string) => {
+    useDashboardLayoutStore.getState().updateDashboardTitle(text);
+  }, []);
+
   const boundActionCreators = useMemo(
     () =>
       bindActionCreators(
@@ -305,25 +275,17 @@ const Header = (): JSX.Element => {
           addSuccessToast,
           addDangerToast,
           addWarningToast,
-          onUndo: undoLayoutAction,
-          onRedo: redoLayoutAction,
-          clearDashboardHistory,
-          setEditMode,
           setUnsavedChanges,
           fetchFaveStar,
           saveFaveStar,
           savePublished,
           fetchCharts,
-          updateDashboardTitle,
           onChange,
           onSave: saveDashboardRequest,
-          setMaxUndoHistoryExceeded,
           maxUndoHistoryToast,
           logEvent,
-          setRefreshFrequency,
           onRefresh,
           dashboardInfoChanged,
-          dashboardTitleChanged,
         },
         dispatch,
       ),
@@ -351,7 +313,7 @@ const Header = (): JSX.Element => {
     autoRefreshMode,
     isLoading,
     onRefresh: boundActionCreators.onRefresh,
-    setRefreshFrequency: boundActionCreators.setRefreshFrequency,
+    setRefreshFrequency: useDashboardStateStore.getState().setRefreshFrequency,
     logEvent: boundActionCreators.logEvent,
   });
 
@@ -369,7 +331,7 @@ const Header = (): JSX.Element => {
       boundActionCreators.maxUndoHistoryToast();
     }
     if (undoLength > UNDO_LIMIT && !maxUndoHistoryExceeded) {
-      boundActionCreators.setMaxUndoHistoryExceeded();
+      useDashboardStateStore.getState().setMaxUndoHistoryExceeded(true);
     }
   }, [
     boundActionCreators,
@@ -393,7 +355,7 @@ const Header = (): JSX.Element => {
   const handleChangeText = useCallback(
     (nextText: string) => {
       if (nextText && dashboardTitle !== nextText) {
-        boundActionCreators.updateDashboardTitle(nextText);
+        updateDashboardTitle(nextText);
         boundActionCreators.onChange();
       }
     },
@@ -401,7 +363,7 @@ const Header = (): JSX.Element => {
   );
 
   const handleCtrlY = useCallback(() => {
-    boundActionCreators.onRedo();
+    onRedo();
     setEmphasizeRedo(true);
     if (ctrlYTimeout.current !== null) {
       clearTimeout(ctrlYTimeout.current);
@@ -409,10 +371,10 @@ const Header = (): JSX.Element => {
     ctrlYTimeout.current = setTimeout(() => {
       setEmphasizeRedo(false);
     }, 100);
-  }, [boundActionCreators]);
+  }, [onRedo]);
 
   const handleCtrlZ = useCallback(() => {
-    boundActionCreators.onUndo();
+    onUndo();
     setEmphasizeUndo(true);
     if (ctrlZTimeout.current !== null) {
       clearTimeout(ctrlZTimeout.current);
@@ -420,16 +382,50 @@ const Header = (): JSX.Element => {
     ctrlZTimeout.current = setTimeout(() => {
       setEmphasizeUndo(false);
     }, 100);
-  }, [boundActionCreators]);
+  }, [onUndo]);
 
   const toggleEditMode = useCallback(() => {
     boundActionCreators.logEvent(LOG_ACTIONS_TOGGLE_EDIT_DASHBOARD, {
       edit_mode: !editMode,
     });
-    boundActionCreators.setEditMode(!editMode);
+    useDashboardStateStore.getState().setEditMode(!editMode);
   }, [boundActionCreators, editMode]);
 
+  const performInPlaceDiscard = useDiscardChanges(dashboardInfo.id);
+  const { showConfirm, ConfirmModal: discardConfirmModal } = useConfirmModal();
+  const saveDashboardMutation = useSaveDashboard();
+  // Synchronous guard against rapid double-clicks. `mutation.isPending` only
+  // flips after a React re-render, so multiple synchronous clicks would still
+  // queue duplicate PUTs. The ref blocks any subsequent .mutate() call until
+  // the in-flight save settles.
+  const saveInFlightRef = useRef(false);
+
+  const discardChanges = useCallback(() => {
+    const doDiscard = () => {
+      if (performInPlaceDiscard()) {
+        useDashboardStateStore.getState().setEditMode(false);
+      } else {
+        discardChangesViaReload();
+      }
+    };
+    if (!hasUnsavedChanges) {
+      doDiscard();
+      return;
+    }
+    showConfirm({
+      title: t('Discard changes?'),
+      body: t(
+        'You will lose all changes since your last save. This cannot be undone.',
+      ),
+      confirmText: t('Discard'),
+      cancelText: t('Keep editing'),
+      confirmButtonStyle: 'danger',
+      onConfirm: doDiscard,
+    });
+  }, [hasUnsavedChanges, performInPlaceDiscard, showConfirm]);
+
   const overwriteDashboard = useCallback(() => {
+    if (saveInFlightRef.current) return;
     const currentColorNamespace =
       dashboardInfo?.metadata?.color_namespace || colorNamespace;
     const currentColorScheme =
@@ -478,13 +474,26 @@ const Header = (): JSX.Element => {
         );
       }
 
-      boundActionCreators.onSave(data, dashboardInfo.id, SAVE_TYPE_OVERWRITE);
+      saveInFlightRef.current = true;
+      saveDashboardMutation.mutate(
+        {
+          data,
+          id: dashboardInfo.id,
+          saveType: SAVE_TYPE_OVERWRITE,
+        },
+        {
+          onSettled: () => {
+            saveInFlightRef.current = false;
+          },
+        },
+      );
     }
   }, [
     actualLastModifiedTime,
     boundActionCreators,
     colorNamespace,
     colorScheme,
+    saveDashboardMutation,
     customCss,
     dashboardInfo.certification_details,
     dashboardInfo.certified_by,
@@ -575,7 +584,7 @@ const Header = (): JSX.Element => {
       boundActionCreators.setUnsavedChanges(true);
 
       if (updates.title && dashboardTitle !== updates.title) {
-        boundActionCreators.updateDashboardTitle(updates.title);
+        updateDashboardTitle(updates.title);
         boundActionCreators.onChange();
       }
     },
@@ -584,16 +593,18 @@ const Header = (): JSX.Element => {
 
   const handleRefreshChange = useCallback(
     (refreshFrequency: number, editMode: boolean) => {
-      boundActionCreators.setRefreshFrequency(refreshFrequency, !!editMode);
+      useDashboardStateStore
+        .getState()
+        .setRefreshFrequency(refreshFrequency, !!editMode);
     },
-    [boundActionCreators],
+    [],
   );
 
   const handleEnterEditMode = useCallback(() => {
     toggleEditMode();
-    boundActionCreators.clearDashboardHistory?.();
+    clearDashboardHistory();
     boundActionCreators.setUnsavedChanges(false);
-  }, [toggleEditMode, boundActionCreators]);
+  }, [toggleEditMode, clearDashboardHistory, boundActionCreators]);
 
   const NavExtension = extensionsRegistry.get('dashboard.nav.right');
 
@@ -685,9 +696,7 @@ const Header = (): JSX.Element => {
                     <StyledUndoRedoButton
                       buttonStyle="link"
                       disabled={undoLength < 1}
-                      onClick={
-                        undoLength > 0 ? boundActionCreators.onUndo : undefined
-                      }
+                      onClick={undoLength > 0 ? onUndo : undefined}
                     >
                       <Icons.Undo
                         css={[
@@ -707,9 +716,7 @@ const Header = (): JSX.Element => {
                     <StyledUndoRedoButton
                       buttonStyle="link"
                       disabled={redoLength < 1}
-                      onClick={
-                        redoLength > 0 ? boundActionCreators.onRedo : undefined
-                      }
+                      onClick={redoLength > 0 ? onRedo : undefined}
                     >
                       <Icons.Redo
                         css={[
@@ -736,7 +743,10 @@ const Header = (): JSX.Element => {
                 <Button
                   css={saveBtnStyle}
                   buttonSize="small"
-                  disabled={!hasUnsavedChanges}
+                  disabled={
+                    !hasUnsavedChanges || saveDashboardMutation.isPending
+                  }
+                  loading={saveDashboardMutation.isPending}
                   buttonStyle="primary"
                   onClick={overwriteDashboard}
                   data-test="header-save-button"
@@ -772,8 +782,8 @@ const Header = (): JSX.Element => {
     ),
     [
       NavExtension,
-      boundActionCreators.onRedo,
-      boundActionCreators.onUndo,
+      onRedo,
+      onUndo,
       editMode,
       emphasizeRedo,
       emphasizeUndo,
@@ -899,6 +909,7 @@ const Header = (): JSX.Element => {
       )}
 
       <OverwriteConfirm />
+      {discardConfirmModal}
 
       {userCanCurate && (
         <DashboardEmbedModal

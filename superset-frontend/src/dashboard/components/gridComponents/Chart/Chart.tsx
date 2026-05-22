@@ -58,6 +58,13 @@ import {
   hasChartStateConverter,
 } from '../../../util/chartStateConverter';
 import { useIsAutoRefreshing } from 'src/dashboard/contexts/AutoRefreshContext';
+import {
+  useDashboardStateStore,
+  useDashboardSlicesStore,
+  useNativeFiltersStore,
+  useDashboardInfoStore,
+} from 'src/dashboard/stores';
+import { useDataMaskStore } from 'src/dataMask/useDataMaskStore';
 
 import SliceHeader from '../../SliceHeader';
 import MissingChart from '../../MissingChart';
@@ -66,12 +73,6 @@ import {
   addDangerToast,
   addSuccessToast,
 } from '../../../../components/MessageToasts/actions';
-import {
-  setFocusedFilterField,
-  toggleExpandSlice,
-  unsetFocusedFilterField,
-  updateChartState,
-} from '../../../actions/dashboardState';
 import { changeFilter } from '../../../actions/dashboardFilters';
 import { refreshChart } from '../../../../components/Chart/chartAction';
 import { logEvent } from '../../../../logger/actions';
@@ -80,7 +81,7 @@ import {
   getAppliedFilterValues,
 } from '../../../util/activeDashboardFilters';
 import getFormDataWithExtraFilters from '../../../util/charts/getFormDataWithExtraFilters';
-import { useChartCustomizationFromRedux } from '../../nativeFilters/state';
+import { useChartCustomizations } from '../../nativeFilters/state';
 import { PLACEHOLDER_DATASOURCE } from '../../../constants';
 
 interface ChartProps {
@@ -179,10 +180,7 @@ const Chart = (props: ChartProps) => {
         {
           addSuccessToast,
           addDangerToast,
-          toggleExpandSlice,
           changeFilter,
-          setFocusedFilterField,
-          unsetFocusedFilterField,
           refreshChart,
           logEvent,
         },
@@ -197,44 +195,36 @@ const Chart = (props: ChartProps) => {
   const chartStatus = chart?.chartStatus;
   const annotationQuery = chart?.annotationQuery;
 
-  const slice: Slice | Record<string, never> = useSelector(
-    (state: RootState) => state.sliceEntities.slices[props.id] || EMPTY_OBJECT,
-  );
+  const slice: Slice | Record<string, never> =
+    useDashboardSlicesStore(s => s.slices[props.id]) || EMPTY_OBJECT;
   const sliceVizType = slice.viz_type;
   const sliceSliceId = slice.slice_id;
   const sliceSliceName = slice.slice_name;
-  const editMode = useSelector(
-    (state: RootState) => state.dashboardState.editMode,
+  const editMode = useDashboardStateStore(s => s.editMode);
+  const isExpanded = useDashboardStateStore(
+    s => !!s.expandedSlices?.[props.id],
   );
-  const isExpanded = useSelector(
-    (state: RootState) =>
-      !!(state.dashboardState as JsonObject).expandedSlices?.[props.id],
+  const supersetCanExplore = useDashboardInfoStore(
+    s => !!(s.dashboardInfo as JsonObject).superset_can_explore,
   );
-  const supersetCanExplore = useSelector(
-    (state: RootState) =>
-      !!(state.dashboardInfo as JsonObject).superset_can_explore,
+  const supersetCanShare = useDashboardInfoStore(
+    s => !!(s.dashboardInfo as JsonObject).superset_can_share,
   );
-  const supersetCanShare = useSelector(
-    (state: RootState) =>
-      !!(state.dashboardInfo as JsonObject).superset_can_share,
+  const supersetCanCSV = useDashboardInfoStore(
+    s => !!(s.dashboardInfo as JsonObject).superset_can_csv,
   );
-  const supersetCanCSV = useSelector(
-    (state: RootState) =>
-      !!(state.dashboardInfo as JsonObject).superset_can_csv,
+  const timeout: number = useDashboardInfoStore(
+    s => s.dashboardInfo.common.conf.SUPERSET_WEBSERVER_TIMEOUT as number,
   );
-  const timeout: number = useSelector(
-    (state: RootState) =>
-      state.dashboardInfo.common.conf.SUPERSET_WEBSERVER_TIMEOUT as number,
+  const emitCrossFilters = useDashboardInfoStore(
+    s => !!s.dashboardInfo.crossFiltersEnabled,
   );
-  const emitCrossFilters = useSelector(
-    (state: RootState) => !!state.dashboardInfo.crossFiltersEnabled,
+  const maxRows: number = useDashboardInfoStore(
+    s => s.dashboardInfo.common.conf.SQL_MAX_ROW as number,
   );
-  const maxRows: number = useSelector(
-    (state: RootState) => state.dashboardInfo.common.conf.SQL_MAX_ROW as number,
-  );
-  const streamingThreshold: number = useSelector(
-    (state: RootState) =>
-      (state.dashboardInfo.common.conf.CSV_STREAMING_ROW_THRESHOLD as number) ||
+  const streamingThreshold: number = useDashboardInfoStore(
+    s =>
+      (s.dashboardInfo.common.conf.CSV_STREAMING_ROW_THRESHOLD as number) ||
       DEFAULT_CSV_STREAMING_ROW_THRESHOLD,
   );
   const datasource: Datasource = useSelector(
@@ -243,11 +233,10 @@ const Chart = (props: ChartProps) => {
         state.datasources[chart.form_data.datasource]) ||
       PLACEHOLDER_DATASOURCE,
   );
-  const dashboardInfo = useSelector((state: RootState) => state.dashboardInfo);
-  const showChartTimestamps: boolean = useSelector(
-    (state: RootState) =>
-      (state.dashboardInfo?.metadata as JsonObject)?.show_chart_timestamps ??
-      false,
+  const dashboardInfo = useDashboardInfoStore(s => s.dashboardInfo);
+  const showChartTimestamps: boolean = useDashboardInfoStore(
+    s =>
+      (s.dashboardInfo?.metadata as JsonObject)?.show_chart_timestamps ?? false,
   );
   const suppressLoadingSpinner = useIsAutoRefreshing();
 
@@ -307,16 +296,16 @@ const Chart = (props: ChartProps) => {
   const handleChartStateChange = useCallback(
     (chartStateArg: JsonObject) => {
       if (hasChartStateConverter(sliceVizType)) {
-        dispatch(
-          updateChartState(
+        useDashboardStateStore
+          .getState()
+          .updateChartState(
             props.id,
             sliceVizType,
             chartStateArg as unknown as import('@superset-ui/core').AgGridChartState,
-          ),
-        );
+          );
       }
     },
-    [dispatch, props.id, sliceVizType],
+    [props.id, sliceVizType],
   );
 
   useLayoutEffect(() => {
@@ -377,16 +366,18 @@ const Chart = (props: ChartProps) => {
 
   const handleFilterMenuOpen = useCallback(
     (chartId: number, column: string) => {
-      boundActionCreators.setFocusedFilterField(chartId, column);
+      useDashboardStateStore.getState().setFocusedFilterField(chartId, column);
     },
-    [boundActionCreators.setFocusedFilterField],
+    [],
   );
 
   const handleFilterMenuClose = useCallback(
     (chartId: number, column: string) => {
-      boundActionCreators.unsetFocusedFilterField(chartId, column);
+      useDashboardStateStore
+        .getState()
+        .unsetFocusedFilterField(chartId, column);
     },
-    [boundActionCreators.unsetFocusedFilterField],
+    [],
   );
 
   const logExploreChart = useCallback(() => {
@@ -396,44 +387,30 @@ const Chart = (props: ChartProps) => {
     });
   }, [boundActionCreators.logEvent, sliceSliceId, isCached]);
 
-  const chartConfiguration = useSelector(
-    (state: RootState) => state.dashboardInfo.metadata?.chart_configuration,
+  const chartConfiguration = useDashboardInfoStore(
+    s => s.dashboardInfo.metadata?.chart_configuration,
   );
-  const chartCustomizationItems = useChartCustomizationFromRedux();
-  const colorScheme = useSelector(
-    (state: RootState) => state.dashboardState.colorScheme,
-  );
-  const colorNamespace = useSelector(
-    (state: RootState) =>
-      (state.dashboardState as JsonObject).colorNamespace as string | undefined,
-  );
-  const datasetsStatus = useSelector(
-    (state: RootState) =>
-      (state.dashboardState as JsonObject).datasetsStatus as string | undefined,
-  );
-  const allSliceIds = useSelector(
-    (state: RootState) => state.dashboardState.sliceIds,
-  );
-  const nativeFilters = useSelector(
-    (state: RootState) => state.nativeFilters?.filters,
-  );
-  const dataMask = useSelector((state: RootState) => state.dataMask);
+  const chartCustomizationItems = useChartCustomizations();
+  const colorScheme = useDashboardStateStore(s => s.colorScheme);
+  const colorNamespace = useDashboardStateStore(s => s.colorNamespace);
+  const datasetsStatus = useDashboardStateStore(s => s.datasetsStatus);
+  const allSliceIds = useDashboardStateStore(s => s.sliceIds);
+  const nativeFilters = useNativeFiltersStore(s => s.filters);
+  const dataMask = useDataMaskStore(s => s.dataMask);
   const dataMaskOwnState = dataMask[props.id]?.ownState;
-  const chartState = useSelector(
-    (state: RootState) => state.dashboardState.chartStates?.[props.id],
+  const chartState = useDashboardStateStore(s => s.chartStates[props.id]);
+  const labelsColor: JsonObject = useDashboardInfoStore(
+    s => s.dashboardInfo?.metadata?.label_colors || EMPTY_OBJECT,
   );
-  const labelsColor: JsonObject = useSelector(
-    (state: RootState) =>
-      state.dashboardInfo?.metadata?.label_colors || EMPTY_OBJECT,
+  const labelsColorMap: JsonObject = useDashboardInfoStore(
+    s => s.dashboardInfo?.metadata?.map_label_colors || EMPTY_OBJECT,
   );
-  const labelsColorMap: JsonObject = useSelector(
-    (state: RootState) =>
-      state.dashboardInfo?.metadata?.map_label_colors || EMPTY_OBJECT,
+  const rawSharedLabelsColors = useDashboardInfoStore(
+    s => s.dashboardInfo?.metadata?.shared_label_colors,
   );
-  const sharedLabelsColors = useSelector((state: RootState) =>
-    enforceSharedLabelsColorsArray(
-      state.dashboardInfo?.metadata?.shared_label_colors,
-    ),
+  const sharedLabelsColors = useMemo(
+    () => enforceSharedLabelsColorsArray(rawSharedLabelsColors),
+    [rawSharedLabelsColors],
   );
 
   const formData = useMemo(
@@ -693,7 +670,7 @@ const Chart = (props: ChartProps) => {
         cachedDttm={cachedDttm as string[]}
         queriedDttm={queriedDttm as string | null | undefined}
         updatedDttm={chartUpdateEndTime ?? null}
-        toggleExpandSlice={boundActionCreators.toggleExpandSlice}
+        toggleExpandSlice={useDashboardStateStore.getState().toggleExpandSlice}
         forceRefresh={forceRefresh}
         editMode={editMode}
         annotationQuery={annotationQuery}

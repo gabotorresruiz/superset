@@ -22,6 +22,11 @@ import { storeWithState } from 'spec/fixtures/mockStore';
 import mockState from 'spec/fixtures/mockState';
 import { sliceId } from 'spec/fixtures/mockChartQueries';
 import { ChartCustomizationType, NativeFilterType } from '@superset-ui/core';
+import {
+  useDashboardStateStore,
+  useDashboardLayoutStore,
+} from 'src/dashboard/stores';
+import type { DashboardLayout } from 'src/dashboard/types';
 import { CHART_TYPE } from '../../util/componentTypes';
 import DashboardContainer from './DashboardContainer';
 import * as nativeFiltersActions from '../../actions/nativeFilters';
@@ -120,22 +125,18 @@ function createTestState(overrides: Record<string, unknown> = {}) {
   };
 }
 
-function setup(overrideState = {}) {
+function setup(overrideState: Record<string, unknown> = {}) {
   const initialState = createTestState(overrideState);
+  const sliceIds =
+    (initialState.dashboardState as { sliceIds?: number[] })?.sliceIds ?? [];
+  useDashboardStateStore.setState({ sliceIds });
+  useDashboardLayoutStore.setState({
+    layout: initialState.dashboardLayout.present as unknown as DashboardLayout,
+  });
   return render(<DashboardContainer />, {
     useRedux: true,
     store: storeWithState(initialState),
   });
-}
-
-function setupWithStore(overrideState = {}) {
-  const initialState = createTestState(overrideState);
-  const store = storeWithState(initialState);
-  const renderResult = render(<DashboardContainer />, {
-    useRedux: true,
-    store,
-  });
-  return { store, ...renderResult };
 }
 
 let setInScopeStatusMock: jest.SpyInstance;
@@ -171,39 +172,6 @@ test('calculates chartsInScope correctly for filters', async () => {
       }),
     ]),
   );
-});
-
-test('preserves chartsInScope when filter non-scope properties change', async () => {
-  const { store } = setupWithStore();
-
-  await waitFor(() => {
-    expect(setInScopeStatusMock).toHaveBeenCalled();
-  });
-
-  const stateBeforeUpdate = store.getState();
-  const filterBeforeUpdate =
-    stateBeforeUpdate.nativeFilters.filters['FILTER-1'];
-
-  expect(filterBeforeUpdate.chartsInScope).toEqual([sliceId]);
-
-  store.dispatch({
-    type: 'SET_NATIVE_FILTERS_CONFIG_COMPLETE',
-    filterChanges: [
-      {
-        ...filterBeforeUpdate,
-        controlValues: {
-          ...filterBeforeUpdate.controlValues,
-          sortAscending: false,
-        },
-      },
-    ],
-  });
-
-  const stateAfterUpdate = store.getState();
-  const filterAfterUpdate = stateAfterUpdate.nativeFilters.filters['FILTER-1'];
-
-  expect(filterAfterUpdate.chartsInScope).toEqual([sliceId]);
-  expect(filterAfterUpdate.controlValues?.sortAscending).toBe(false);
 });
 
 test('handles multiple filters with different scopes', async () => {

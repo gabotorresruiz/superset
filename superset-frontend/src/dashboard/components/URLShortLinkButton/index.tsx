@@ -29,8 +29,11 @@ import {
 import { CopyToClipboard } from 'src/components';
 import { getDashboardPermalink } from 'src/utils/urlUtils';
 import { useToasts } from 'src/components/MessageToasts/withToasts';
-import { shallowEqual, useSelector } from 'react-redux';
-import { RootState } from 'src/dashboard/types';
+import {
+  useDashboardStateStore,
+  useDashboardSlicesStore,
+} from 'src/dashboard/stores';
+import { useDataMaskStore } from 'src/dataMask/useDataMaskStore';
 import { Typography } from '@superset-ui/core/components/Typography';
 import { hasStatefulCharts } from 'src/dashboard/util/chartStateConverter';
 
@@ -52,15 +55,10 @@ export default function URLShortLinkButton({
   const theme = useTheme();
   const [shortUrl, setShortUrl] = useState('');
   const { addDangerToast } = useToasts();
-  const { dataMask, activeTabs, chartStates, sliceEntities } = useSelector(
-    (state: RootState) => ({
-      dataMask: state.dataMask,
-      activeTabs: state.dashboardState.activeTabs,
-      chartStates: state.dashboardState.chartStates,
-      sliceEntities: state.sliceEntities?.slices,
-    }),
-    shallowEqual,
-  );
+  const activeTabs = useDashboardStateStore(s => s.activeTabs);
+  const chartStates = useDashboardStateStore(s => s.chartStates);
+  const sliceEntities = useDashboardSlicesStore(s => s.slices);
+  const dataMask = useDataMaskStore(s => s.dataMask);
 
   const getCopyUrl = async () => {
     try {

@@ -53,7 +53,7 @@ import {
 
 import { useImmer } from 'use-immer';
 import { isEmpty, isEqual, debounce } from 'lodash';
-import { getInitialDataMask } from 'src/dataMask/reducer';
+import { getInitialDataMask } from 'src/dataMask/useDataMaskStore';
 import { URL_PARAMS } from 'src/constants';
 import { applicationRoot } from 'src/utils/getBootstrapData';
 import { getUrlParam } from 'src/utils/urlUtils';
@@ -61,6 +61,7 @@ import { useTabId } from 'src/hooks/useTabId';
 import { logEvent } from 'src/logger/actions';
 import { LOG_ACTIONS_CHANGE_DASHBOARD_FILTER } from 'src/logger/LogUtils';
 import { FilterBarOrientation, RootState } from 'src/dashboard/types';
+import { useDashboardInfoStore } from 'src/dashboard/stores';
 import { UserWithPermissionsAndRoles } from 'src/types/bootstrapTypes';
 import { isChartCustomization } from '../FiltersConfigModal/utils';
 import { checkIsApplyDisabled, getFiltersToApply } from './utils';
@@ -196,13 +197,9 @@ const FilterBar: FC<FiltersBarProps> = ({
     () => filterValues.filter(isNativeFilter),
     [filterValues],
   );
-  const dashboardId = useSelector<any, number>(
-    ({ dashboardInfo }) => dashboardInfo?.id,
-  );
+  const dashboardId = useDashboardInfoStore(s => s.dashboardInfo?.id);
   const previousDashboardId = usePrevious(dashboardId);
-  const canEdit = useSelector<RootState, boolean>(
-    ({ dashboardInfo }) => dashboardInfo.dash_edit_perm,
-  );
+  const canEdit = useDashboardInfoStore(s => s.dashboardInfo.dash_edit_perm);
   const user: UserWithPermissionsAndRoles = useSelector<
     RootState,
     UserWithPermissionsAndRoles
@@ -411,10 +408,9 @@ const FilterBar: FC<FiltersBarProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dashboardId, dataMaskAppliedText, history, updateKey, tabId]);
 
-  const pendingChartCustomizations = useSelector<
-    RootState,
-    Record<string, ChartCustomization> | undefined
-  >(state => state.dashboardInfo.pendingChartCustomizations);
+  const pendingChartCustomizations = useDashboardInfoStore(
+    s => s.dashboardInfo.pendingChartCustomizations,
+  );
 
   const handlePendingCustomizationDataMaskChange = useCallback(
     (customizationId: string, dataMask: DataMask) => {
@@ -521,6 +517,10 @@ const FilterBar: FC<FiltersBarProps> = ({
           }
           draft[id].extraFormData = {};
           if (draft[id].filterState) {
+            // Drop the display label too — the filter indicator derives its
+            // "applied" state from `label`, so leaving it set would keep a
+            // stale filter badge after Clear All.
+            draft[id].filterState!.label = undefined;
             draft[id].filterState!.validateStatus = isRequired
               ? 'error'
               : undefined;

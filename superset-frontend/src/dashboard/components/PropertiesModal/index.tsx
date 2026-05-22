@@ -45,10 +45,10 @@ import {
   getFreshLabelsColorMapEntries,
 } from 'src/utils/colorScheme';
 import { useDispatch } from 'react-redux';
-import {
-  setColorScheme,
-  setDashboardMetadata,
-} from 'src/dashboard/actions/dashboardState';
+import { useQueryClient } from '@tanstack/react-query';
+import { useDashboardQuery, dashboardKeys } from 'src/dashboard/queries';
+import { useDashboardStateStore } from 'src/dashboard/stores';
+import { setDashboardMetadata } from 'src/dashboard/actions/dashboardState';
 import { dashboardInfoChanged } from 'src/dashboard/actions/dashboardInfo';
 import { areObjectsEqual } from 'src/reduxUtils';
 import { StandardModal, useModalValidation } from 'src/components/Modal';
@@ -112,7 +112,21 @@ const PropertiesModal = ({
   show = false,
 }: PropertiesModalProps) => {
   const dispatch = useDispatch();
+  const queryClient = useQueryClient();
   const [form] = Form.useForm();
+
+  // TanStack Query: only fetch when modal is open and the caller didn't pass dashboardInfo.
+  // Reads from cache if the dashboard was already hydrated by the page.
+  const { data: queryDashboard, error: queryError } = useDashboardQuery(
+    dashboardId,
+    {
+      enabled: show && !currentDashboardInfo,
+      staleTime: 60_000,
+      // A focus refetch while the modal is open would re-seed the form and
+      // wipe in-progress edits.
+      refetchOnWindowFocus: false,
+    },
+  );
 
   const [isLoading, setIsLoading] = useState(true);
   const [isApplying, setIsApplying] = useState(false);
@@ -219,27 +233,16 @@ const PropertiesModal = ({
     [form],
   );
 
-  const fetchDashboardDetails = useCallback(() => {
-    // We fetch the dashboard details because not all code
-    // that renders this component have all the values we need.
-    // At some point when we have a more consistent frontend
-    // datamodel, the dashboard could probably just be passed as a prop.
-    SupersetClient.get({
-      endpoint: `/api/v1/dashboard/${dashboardId}`,
-    }).then(response => {
-      const dashboard = response.json.result;
-      const jsonMetadataObj = dashboard.json_metadata?.length
-        ? JSON.parse(dashboard.json_metadata)
-        : {};
-
-      handleDashboardData({
-        ...dashboard,
-        metadata: jsonMetadataObj,
-      });
-
-      setIsLoading(false);
-    }, handleErrorResponse);
-  }, [dashboardId, handleDashboardData]);
+  // useDashboardQuery handles the fetch; surface errors via toast.
+  useEffect(() => {
+    if (queryError) {
+      addDangerToast(
+        queryError instanceof Error
+          ? queryError.message
+          : t('Failed to load dashboard properties'),
+      );
+    }
+  }, [queryError, addDangerToast]);
 
   const getJsonMetadata = () => {
     try {
@@ -276,9 +279,9 @@ const PropertiesModal = ({
     }
     if (originalCss.current !== null) {
       dispatch(dashboardInfoChanged({ css: originalCss.current }));
-      dispatch(
-        setColorScheme(originalDashboardMetadata.current.color_scheme ?? ''),
-      );
+      useDashboardStateStore
+        .getState()
+        .setColorScheme(originalDashboardMetadata.current.color_scheme ?? '');
     }
     onHide();
   };
@@ -302,7 +305,7 @@ const PropertiesModal = ({
     jsonMetadataObj.label_colors = jsonMetadataObj.label_colors || {};
 
     setCurrentColorScheme(colorScheme);
-    dispatch(setColorScheme(colorScheme));
+    useDashboardStateStore.getState().setColorScheme(colorScheme);
 
     // update metadata to match selection
     if (updateMetadata) {
@@ -441,6 +444,10 @@ const PropertiesModal = ({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(saveData),
       }).then(() => {
+        // Invalidate so any next read (modal re-open, dashboard page) refetches.
+        queryClient.invalidateQueries({
+          queryKey: dashboardKeys.detail(dashboardId),
+        });
         onSubmit(onSubmitProps);
         onHide();
         addSuccessToast(t('The dashboard has been saved'));
@@ -461,13 +468,15 @@ const PropertiesModal = ({
       // Reset loading state when modal opens
       setIsLoading(true);
 
-      if (!currentDashboardInfo) {
-        fetchDashboardDetails();
-      } else {
+      if (currentDashboardInfo) {
         handleDashboardData(currentDashboardInfo);
-        // Data is immediately available, so we can stop loading
+        setIsLoading(false);
+      } else if (queryDashboard) {
+        // useDashboardQuery already parsed json_metadata into metadata
+        handleDashboardData(queryDashboard);
         setIsLoading(false);
       }
+      // Else: waiting on useDashboardQuery; isLoading stays true until it resolves.
 
       // Fetch themes (excluding system themes)
       const themeQuery = rison.encode({
@@ -493,7 +502,7 @@ const PropertiesModal = ({
     }
   }, [
     currentDashboardInfo,
-    fetchDashboardDetails,
+    queryDashboard,
     handleDashboardData,
     show,
     addDangerToast,

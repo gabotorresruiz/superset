@@ -21,12 +21,16 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { URL_PARAMS } from 'src/constants';
 import { getUrlParam } from 'src/utils/urlUtils';
 import { RootState } from 'src/dashboard/types';
+import {
+  useDashboardStateStore,
+  useDashboardInfoStore,
+} from 'src/dashboard/stores';
 import { isFeatureEnabled, FeatureFlag } from '@superset-ui/core';
 import {
   useFilters,
   useNativeFiltersDataMask,
 } from '../nativeFilters/FilterBar/state';
-import { useChartCustomizationFromRedux } from '../nativeFilters/state';
+import { useChartCustomizations } from '../nativeFilters/state';
 import { toggleNativeFiltersBar } from '../../actions/dashboardState';
 
 export const useNativeFilters = () => {
@@ -37,17 +41,14 @@ export const useNativeFilters = () => {
   const showNativeFilters = useSelector<RootState, boolean>(
     () => getUrlParam(URL_PARAMS.showFilters) ?? true,
   );
-  const canEdit = useSelector<RootState, boolean>(
-    ({ dashboardInfo }) => dashboardInfo.dash_edit_perm,
-  );
-  const dashboardFiltersOpen = useSelector<RootState, boolean>(
-    state => state.dashboardState.nativeFiltersBarOpen ?? false,
-  );
+  const canEdit = useDashboardInfoStore(s => s.dashboardInfo.dash_edit_perm);
+  const dashboardFiltersOpen =
+    useDashboardStateStore(s => s.nativeFiltersBarOpen) ?? false;
 
   const filters = useFilters();
   const filterValues = useMemo(() => Object.values(filters), [filters]);
   const expandFilters = getUrlParam(URL_PARAMS.expandFilters);
-  const chartCustomizations = useChartCustomizationFromRedux();
+  const chartCustomizations = useChartCustomizations();
 
   const nativeFiltersEnabled =
     showNativeFilters &&

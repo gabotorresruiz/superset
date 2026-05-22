@@ -23,6 +23,8 @@ import { mockAllIsIntersecting } from 'react-intersection-observer/test-utils';
 
 import { fireEvent, render, waitFor } from 'spec/helpers/testing-library';
 import { overwriteConfirmMetadata } from 'spec/fixtures/mockDashboardState';
+import { useDashboardInfoStore } from 'src/dashboard/stores';
+import type { DashboardInfo } from 'src/dashboard/types';
 import OverwriteConfirmModal from './OverwriteConfirmModal';
 
 const middlewares = [thunk];
@@ -65,10 +67,12 @@ test('requests update dashboard api when save button is clicked', async () => {
     },
     { name: updateDashboardEndpoint },
   );
+  const dashboardInfo = { metadata: {} } as DashboardInfo;
+  useDashboardInfoStore.setState({ dashboardInfo });
   const store = mockStore({
     dashboardLayout: { present: {} },
     dashboardFilters: {},
-    dashboardInfo: { metadata: {} },
+    dashboardInfo,
     charts: {},
   });
   const { findByTestId } = render(

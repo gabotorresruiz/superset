@@ -60,10 +60,7 @@ import {
   ExplorePageInitialData,
 } from 'src/explore/types';
 import { UserWithPermissionsAndRoles } from 'src/types/bootstrapTypes';
-import {
-  removeChartState,
-  updateChartState,
-} from 'src/dashboard/actions/dashboardState';
+import { useDashboardStateStore } from 'src/dashboard/stores';
 import { Dashboard } from 'src/types/Dashboard';
 import { TabNode, TabTreeNode } from '../types';
 import { CHART_WIDTH, CHART_HEIGHT } from 'src/dashboard/constants';
@@ -247,7 +244,9 @@ class SaveModal extends Component<SaveModalProps, SaveModalState> {
     const sliceId = this.props.slice?.slice_id;
     const vizType = this.props.form_data?.viz_type;
     if (sliceId && vizType && tableState) {
-      this.props.dispatch(updateChartState(sliceId, vizType, tableState));
+      useDashboardStateStore
+        .getState()
+        .updateChartState(sliceId, vizType, tableState);
     }
 
     //  Create or retrieve dashboard
@@ -375,7 +374,7 @@ class SaveModal extends Component<SaveModalProps, SaveModalState> {
         if (this.state.selectedTab?.value) {
           url += `#${this.state.selectedTab.value}`;
         }
-        this.props.dispatch(removeChartState(value.id));
+        useDashboardStateStore.getState().removeChartState(value.id);
         this.props.history.push(url);
         return;
       }

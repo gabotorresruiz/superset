@@ -34,6 +34,14 @@ import {
   removeDataMask,
   setDataMaskForFilterChangesComplete,
 } from 'src/dataMask/actions';
+import {
+  useNativeFiltersStore,
+  useDashboardInfoStore,
+  type FilterEntry,
+} from 'src/dashboard/stores';
+import { rebaselineHydrationDashboardInfo } from 'src/dashboard/util/rebaselineHydrationDashboardInfo';
+import { queryClient } from 'src/queries/queryClient';
+import { dashboardKeys } from 'src/dashboard/queries';
 import { dashboardInfoChanged } from './dashboardInfo';
 import {
   SET_NATIVE_FILTERS_CONFIG_COMPLETE,
@@ -57,15 +65,6 @@ const createUpdateChartCustomizationsApi = (id: number) =>
     endpoint: `/api/v1/dashboard/${id}/chart_customizations`,
   });
 
-export const SAVE_CHART_CUSTOMIZATION_COMPLETE =
-  'SAVE_CHART_CUSTOMIZATION_COMPLETE';
-
-export function setChartCustomization(
-  chartCustomization: ChartCustomization[],
-) {
-  return { type: SAVE_CHART_CUSTOMIZATION_COMPLETE, chartCustomization };
-}
-
 export function saveChartCustomization(
   modifiedCustomizations: (ChartCustomization | ChartCustomizationDivider)[],
   deletedIds: string[],
@@ -77,11 +76,8 @@ export function saveChartCustomization(
   null,
   AnyAction
 > {
-  return async function (
-    dispatch: ThunkDispatch<RootState, null, AnyAction>,
-    getState: () => RootState,
-  ) {
-    const { id, metadata } = getState().dashboardInfo;
+  return async function (dispatch: ThunkDispatch<RootState, null, AnyAction>) {
+    const { id, metadata } = useDashboardInfoStore.getState().dashboardInfo;
 
     const modifiedItems = modifiedCustomizations.map(item => {
       if ('cascadeParentIds' in item) {
@@ -106,7 +102,8 @@ export function saveChartCustomization(
         reordered: reorderedIds,
       });
 
-      const currentMetadata = getState().dashboardInfo.metadata;
+      const currentMetadata =
+        useDashboardInfoStore.getState().dashboardInfo.metadata;
       const currentConfig =
         currentMetadata?.chart_customization_config?.filter(Boolean) || [];
 
@@ -134,6 +131,9 @@ export function saveChartCustomization(
         },
       );
 
+      useNativeFiltersStore
+        .getState()
+        .setFiltersConfigComplete(mergedResult as FilterEntry[]);
       dispatch({
         type: SET_NATIVE_FILTERS_CONFIG_COMPLETE,
         filterChanges: mergedResult,
@@ -147,6 +147,8 @@ export function saveChartCustomization(
           },
         }),
       );
+      rebaselineHydrationDashboardInfo(id);
+      queryClient.invalidateQueries({ queryKey: dashboardKeys.detail(id) });
 
       if (resetDataMask) {
         const oldConfig =
@@ -196,6 +198,9 @@ export function setChartCustomizationDataLoading(
   itemId: string,
   isLoading: boolean,
 ): SetChartCustomizationDataLoading {
+  useDashboardInfoStore
+    .getState()
+    .setChartCustomizationDataLoading(itemId, isLoading);
   return {
     type: SET_CHART_CUSTOMIZATION_DATA_LOADING,
     itemId,
@@ -214,32 +219,11 @@ export function setChartCustomizationData(
   itemId: string,
   data: ColumnOption[],
 ): SetChartCustomizationData {
+  useDashboardInfoStore.getState().setChartCustomizationData(itemId, data);
   return {
     type: SET_CHART_CUSTOMIZATION_DATA,
     itemId,
     data,
-  };
-}
-
-export function loadChartCustomizationData(
-  itemId: string,
-  datasetId: string,
-  columnName: string | string[],
-): ThunkAction<Promise<void>, RootState, null, AnyAction> {
-  return async (dispatch: ThunkDispatch<RootState, null, AnyAction>) => {
-    if (!datasetId || !columnName) {
-      return;
-    }
-
-    const actualColumnName = Array.isArray(columnName)
-      ? columnName[0]
-      : columnName;
-
-    if (!actualColumnName) {
-      return;
-    }
-
-    dispatch(setChartCustomizationDataLoading(itemId, true));
   };
 }
 
@@ -253,6 +237,9 @@ export interface SetPendingChartCustomization {
 export function setPendingChartCustomization(
   pendingCustomization: ChartCustomization,
 ): SetPendingChartCustomization {
+  useDashboardInfoStore
+    .getState()
+    .setPendingChartCustomization(pendingCustomization);
   return {
     type: SET_PENDING_CHART_CUSTOMIZATION,
     pendingCustomization,
@@ -269,6 +256,7 @@ export interface ClearPendingChartCustomization {
 export function clearPendingChartCustomization(
   itemId: string,
 ): ClearPendingChartCustomization {
+  useDashboardInfoStore.getState().clearPendingChartCustomization(itemId);
   return {
     type: CLEAR_PENDING_CHART_CUSTOMIZATION,
     itemId,
@@ -282,6 +270,7 @@ export interface ClearAllPendingChartCustomizations {
 }
 
 export function clearAllPendingChartCustomizations(): ClearAllPendingChartCustomizations {
+  useDashboardInfoStore.getState().clearAllPendingChartCustomizations();
   return {
     type: CLEAR_ALL_PENDING_CHART_CUSTOMIZATIONS,
   };
@@ -293,6 +282,7 @@ export interface ClearAllChartCustomizations {
 }
 
 export function clearAllChartCustomizations(): ClearAllChartCustomizations {
+  useDashboardInfoStore.getState().clearAllChartCustomizations();
   return {
     type: CLEAR_ALL_CHART_CUSTOMIZATIONS,
   };
@@ -309,11 +299,8 @@ export function setInScopeStatusOfCustomizations(
     tabsInScope: string[];
   }[],
 ): ThunkAction<void, RootState, null, AnyAction> {
-  return (
-    dispatch: ThunkDispatch<RootState, null, AnyAction>,
-    getState: () => RootState,
-  ) => {
-    const { filters } = getState().nativeFilters;
+  return (dispatch: ThunkDispatch<RootState, null, AnyAction>) => {
+    const { filters } = useNativeFiltersStore.getState();
 
     const scopeConfig = customizationScopes
       .map(({ customizationId, chartsInScope, tabsInScope }) => {
@@ -328,13 +315,16 @@ export function setInScopeStatusOfCustomizations(
       .filter(Boolean);
 
     if (scopeConfig.length > 0) {
+      useNativeFiltersStore
+        .getState()
+        .setInScopeStatus(scopeConfig as FilterEntry[]);
       dispatch({
         type: SET_IN_SCOPE_STATUS_OF_FILTERS,
         filterConfig: scopeConfig,
       });
     }
 
-    const { metadata } = getState().dashboardInfo;
+    const { metadata } = useDashboardInfoStore.getState().dashboardInfo;
     const customizationConfig =
       metadata?.chart_customization_config?.filter(Boolean) || [];
 
@@ -369,12 +359,3 @@ export function setInScopeStatusOfCustomizations(
     );
   };
 }
-
-export type AnyChartCustomizationAction =
-  | ReturnType<typeof setChartCustomization>
-  | SetChartCustomizationDataLoading
-  | SetChartCustomizationData
-  | SetPendingChartCustomization
-  | ClearPendingChartCustomization
-  | ClearAllPendingChartCustomizations
-  | ClearAllChartCustomizations;

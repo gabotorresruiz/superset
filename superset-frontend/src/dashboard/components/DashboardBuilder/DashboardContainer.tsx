@@ -30,6 +30,11 @@ import {
 } from 'react';
 import { useDispatch, useSelector, shallowEqual } from 'react-redux';
 import { createSelector } from '@reduxjs/toolkit';
+import {
+  useDashboardStateStore,
+  useDashboardLayoutStore,
+  useDashboardInfoStore,
+} from 'src/dashboard/stores';
 import { isEqual } from 'lodash';
 import {
   ChartCustomizationConfiguration,
@@ -41,12 +46,7 @@ import {
 import { useParentSize } from '@visx/responsive';
 import Tabs from '@superset-ui/core/components/Tabs';
 import DashboardGrid from 'src/dashboard/containers/DashboardGrid';
-import {
-  DashboardInfo,
-  DashboardLayout,
-  LayoutItem,
-  RootState,
-} from 'src/dashboard/types';
+import { LayoutItem, RootState } from 'src/dashboard/types';
 import {
   DASHBOARD_GRID_ID,
   DASHBOARD_ROOT_DEPTH,
@@ -70,7 +70,7 @@ import {
 } from 'src/dashboard/util/migrateChartCustomization';
 import { CHART_TYPE } from 'src/dashboard/util/componentTypes';
 import { NATIVE_FILTER_DIVIDER_PREFIX } from '../nativeFilters/FiltersConfigModal/utils';
-import { selectFilterConfiguration } from '../nativeFilters/state';
+import { useFilterConfiguration } from '../nativeFilters/state';
 import { getRootLevelTabsComponent } from './utils';
 
 type DashboardContainerProps = {
@@ -140,26 +140,20 @@ const useRenderedChartIds = () => {
 
 const TOP_OF_PAGE_RANGE = 220;
 
+// Stable reference so the Zustand selector doesn't return a fresh array.
+const EMPTY_CUSTOMIZATIONS: ChartCustomizationConfiguration = [];
+
 const DashboardContainer: FC<DashboardContainerProps> = ({ topLevelTabs }) => {
   const dispatch = useDispatch();
 
-  const dashboardLayout = useSelector<RootState, DashboardLayout>(
-    state => state.dashboardLayout.present,
-  );
-  const dashboardInfo = useSelector<RootState, DashboardInfo>(
-    state => state.dashboardInfo,
-  );
-  const filterItems = useSelector(selectFilterConfiguration);
-  const chartCustomizations = useSelector<
-    RootState,
-    ChartCustomizationConfiguration
-  >(
-    state => state.dashboardInfo?.metadata?.chart_customization_config || [],
-    shallowEqual,
-  );
-  const directPathToChild = useSelector<RootState, string[]>(
-    state => state.dashboardState.directPathToChild,
-  );
+  const dashboardLayout = useDashboardLayoutStore(s => s.layout);
+  const dashboardInfo = useDashboardInfoStore(s => s.dashboardInfo);
+  const filterItems = useFilterConfiguration();
+  const chartCustomizations =
+    useDashboardInfoStore(
+      s => s.dashboardInfo?.metadata?.chart_customization_config,
+    ) || EMPTY_CUSTOMIZATIONS;
+  const directPathToChild = useDashboardStateStore(s => s.directPathToChild);
   const chartIds = useChartIds();
 
   const renderedChartIds = useRenderedChartIds();

@@ -16,12 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useSelector } from 'react-redux';
 import { isChartCustomization, useTruncation } from '@superset-ui/core';
 import { css, SupersetTheme, useTheme } from '@apache-superset/core/theme';
 import { Icons } from '@superset-ui/core/components/Icons';
 import { useFilterConfigModal } from 'src/dashboard/components/nativeFilters/FilterBar/FilterConfigurationLink/useFilterConfigModal';
-import { RootState } from 'src/dashboard/types';
+import { useDashboardInfoStore } from 'src/dashboard/stores';
 import { Row, FilterName, InternalRow } from './Styles';
 import { FilterCardRowProps } from './types';
 import { FilterConfigurationLink } from '../FilterBar/FilterConfigurationLink';
@@ -33,13 +32,9 @@ export const NameRow = ({
 }: FilterCardRowProps & { hidePopover: () => void }) => {
   const theme = useTheme();
   const [filterNameRef, , elementsTruncated] = useTruncation();
-  const dashboardId = useSelector<RootState, number>(
-    ({ dashboardInfo }) => dashboardInfo.id,
-  );
+  const dashboardId = useDashboardInfoStore(s => s.dashboardInfo.id);
 
-  const canEdit = useSelector<RootState, boolean>(
-    ({ dashboardInfo }) => dashboardInfo.dash_edit_perm,
-  );
+  const canEdit = useDashboardInfoStore(s => s.dashboardInfo.dash_edit_perm);
 
   const { FilterConfigModalComponent, openFilterConfigModal } =
     useFilterConfigModal({

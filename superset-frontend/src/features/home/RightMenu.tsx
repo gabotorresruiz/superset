@@ -54,7 +54,7 @@ import {
   UserWithPermissionsAndRoles,
   MenuObjectChildProps,
 } from 'src/types/bootstrapTypes';
-import { RootState } from 'src/dashboard/types';
+import { useDashboardInfoStore } from 'src/dashboard/stores';
 import DatabaseModal from 'src/features/databases/DatabaseModal';
 import UploadDataModal from 'src/features/databases/UploadDataModel';
 import { uploadUserPerms } from 'src/views/CRUD/utils';
@@ -123,9 +123,7 @@ const RightMenu = ({
   const user = useSelector<any, UserWithPermissionsAndRoles>(
     state => state.user,
   );
-  const dashboardId = useSelector<RootState, number | undefined>(
-    state => state.dashboardInfo?.id,
-  );
+  const dashboardId = useDashboardInfoStore(s => s.dashboardInfo?.id);
   const userValues = user || {};
   const { roles } = userValues;
   const {

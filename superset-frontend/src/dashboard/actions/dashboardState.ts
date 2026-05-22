@@ -17,7 +17,20 @@
  * under the License.
  */
 /* eslint camelcase: 0 */
-import { ActionCreators as UndoActionCreators } from 'redux-undo';
+import {
+  useDashboardStateStore,
+  useDashboardLayoutStore,
+  useDashboardSlicesStore,
+  useNativeFiltersStore,
+  useDashboardInfoStore,
+  type FilterEntry,
+} from 'src/dashboard/stores';
+// Imported from the submodule, not the queries barrel: the barrel pulls in
+// useSaveDashboard, which imports this file — a cycle the direct path avoids.
+import { getCachedSlice } from 'src/dashboard/queries/useSlicesQuery/useSlicesQuery';
+import { queryClient } from 'src/queries/queryClient';
+import { dashboardKeys } from 'src/dashboard/queries/keys';
+import { dropHydrationSnapshot } from 'src/dashboard/util/rebaselineHydrationDashboardInfo';
 import rison from 'rison';
 import {
   ensureIsArray,
@@ -65,7 +78,6 @@ import type { ThunkDispatch } from 'redux-thunk';
 import { ResourceStatus } from 'src/hooks/apiResources/apiResources';
 import type { AgGridChartState } from '@superset-ui/core';
 import type { DashboardChartStates } from 'src/dashboard/types/chartState';
-import { UPDATE_COMPONENTS_PARENTS_LIST } from './dashboardLayout';
 import {
   saveChartConfiguration,
   dashboardInfoChanged,
@@ -85,7 +97,13 @@ import {
   getFreshSharedLabels,
   getDynamicLabelsColors,
 } from '../../utils/colorScheme';
-import type { DashboardState, GetState, RootState, Slice } from '../types';
+import type {
+  DashboardLayout,
+  DashboardState,
+  GetState,
+  RootState,
+  Slice,
+} from '../types';
 
 // Dashboard dispatch type. The base ThunkDispatch handles dashboard-specific
 // thunks. The intersection with a generic function-accepting overload allows
@@ -110,6 +128,7 @@ interface ToggleNativeFiltersBarAction {
 export function toggleNativeFiltersBar(
   isOpen: boolean,
 ): ToggleNativeFiltersBarAction {
+  useDashboardStateStore.getState().setNativeFiltersBarOpen(isOpen);
   return { type: TOGGLE_NATIVE_FILTERS_BAR, isOpen };
 }
 
@@ -123,6 +142,7 @@ interface SetUnsavedChangesAction {
 export function setUnsavedChanges(
   hasUnsavedChanges: boolean,
 ): SetUnsavedChangesAction {
+  useDashboardStateStore.getState().setHasUnsavedChanges(hasUnsavedChanges);
   return { type: SET_UNSAVED_CHANGES, payload: { hasUnsavedChanges } };
 }
 
@@ -134,18 +154,13 @@ interface AddSliceAction {
 }
 
 export function addSlice(slice: Slice): AddSliceAction {
+  useDashboardStateStore.getState().addSliceId(slice.slice_id);
   return { type: ADD_SLICE, slice };
 }
 
-export const REMOVE_SLICE = 'REMOVE_SLICE';
-
-interface RemoveSliceAction {
-  type: typeof REMOVE_SLICE;
-  sliceId: number;
-}
-
-export function removeSlice(sliceId: number): RemoveSliceAction {
-  return { type: REMOVE_SLICE, sliceId };
+// Keep the slice in useDashboardSlicesStore so undo can re-add the chart.
+export function removeSlice(sliceId: number): void {
+  useDashboardStateStore.getState().removeSliceId(sliceId);
 }
 
 export const TOGGLE_FAVE_STAR = 'TOGGLE_FAVE_STAR';
@@ -156,13 +171,14 @@ interface ToggleFaveStarAction {
 }
 
 export function toggleFaveStar(isStarred: boolean): ToggleFaveStarAction {
+  useDashboardStateStore.getState().setIsStarred(isStarred);
   return { type: TOGGLE_FAVE_STAR, isStarred };
 }
 
 export function fetchFaveStar(id: number) {
   return function fetchFaveStarThunk(
     dispatch: AppDispatch,
-    getState: GetState,
+    _getState: GetState,
   ) {
     return SupersetClient.get({
       endpoint: `/api/v1/dashboard/favorite_status/?q=${rison.encode([id])}`,
@@ -170,7 +186,7 @@ export function fetchFaveStar(id: number) {
       .then(({ json }: { json: JsonObject }) => {
         // Only update state if this is still the current dashboard
         // This prevents stale responses from affecting the UI after navigation
-        const currentId = getState().dashboardInfo?.id;
+        const currentId = useDashboardInfoStore.getState().dashboardInfo?.id;
         if (currentId === id) {
           dispatch(
             toggleFaveStar(!!(json?.result as JsonObject[])?.[0]?.value),
@@ -181,7 +197,7 @@ export function fetchFaveStar(id: number) {
         // Only show error if this is still the current dashboard
         // This prevents error toasts from appearing for dashboards the user
         // has already navigated away from (e.g., deleted dashboards)
-        const currentId = getState().dashboardInfo?.id;
+        const currentId = useDashboardInfoStore.getState().dashboardInfo?.id;
         if (currentId === id) {
           dispatch(
             addDangerToast(
@@ -196,7 +212,10 @@ export function fetchFaveStar(id: number) {
 }
 
 export function saveFaveStar(id: number, isStarred: boolean) {
-  return function saveFaveStarThunk(dispatch: AppDispatch, getState: GetState) {
+  return function saveFaveStarThunk(
+    dispatch: AppDispatch,
+    _getState: GetState,
+  ) {
     const endpoint = `/api/v1/dashboard/${id}/favorites/`;
     const apiCall = isStarred
       ? SupersetClient.delete({
@@ -207,14 +226,14 @@ export function saveFaveStar(id: number, isStarred: boolean) {
     return apiCall
       .then(() => {
         // Only update state if this is still the current dashboard
-        const currentId = getState().dashboardInfo?.id;
+        const currentId = useDashboardInfoStore.getState().dashboardInfo?.id;
         if (currentId === id) {
           dispatch(toggleFaveStar(!isStarred));
         }
       })
       .catch(() => {
         // Only show error if this is still the current dashboard
-        const currentId = getState().dashboardInfo?.id;
+        const currentId = useDashboardInfoStore.getState().dashboardInfo?.id;
         if (currentId === id) {
           dispatch(
             addDangerToast(t('There was an issue favoriting this dashboard.')),
@@ -232,6 +251,7 @@ interface TogglePublishedAction {
 }
 
 export function togglePublished(isPublished: boolean): TogglePublishedAction {
+  useDashboardStateStore.getState().setIsPublished(isPublished);
   return { type: TOGGLE_PUBLISHED, isPublished };
 }
 
@@ -241,7 +261,7 @@ export function savePublished(
 ): (dispatch: AppDispatch, getState: GetState) => Promise<void> {
   return function savePublishedThunk(
     dispatch: AppDispatch,
-    getState: GetState,
+    _getState: GetState,
   ): Promise<void> {
     return SupersetClient.put({
       endpoint: `/api/v1/dashboard/${id}`,
@@ -253,7 +273,7 @@ export function savePublished(
       .then(() => {
         // Only update state if this is still the current dashboard
         // This prevents stale responses from affecting the UI after navigation
-        const currentId = getState().dashboardInfo?.id;
+        const currentId = useDashboardInfoStore.getState().dashboardInfo?.id;
         if (currentId === id) {
           dispatch(
             addSuccessToast(
@@ -263,11 +283,14 @@ export function savePublished(
             ),
           );
           dispatch(togglePublished(isPublished));
+          queryClient.invalidateQueries({ queryKey: dashboardKeys.detail(id) });
+          // The snapshot predates this persisted publish change; drop it so discard reloads.
+          dropHydrationSnapshot(id);
         }
       })
       .catch(() => {
         // Only show error if this is still the current dashboard
-        const currentId = getState().dashboardInfo?.id;
+        const currentId = useDashboardInfoStore.getState().dashboardInfo?.id;
         if (currentId === id) {
           dispatch(
             addDangerToast(
@@ -287,6 +310,7 @@ interface ToggleExpandSliceAction {
 }
 
 export function toggleExpandSlice(sliceId: number): ToggleExpandSliceAction {
+  useDashboardStateStore.getState().toggleExpandSlice(sliceId);
   return { type: TOGGLE_EXPAND_SLICE, sliceId };
 }
 
@@ -308,6 +332,7 @@ interface OnChangeAction {
 }
 
 export function onChange(): OnChangeAction {
+  useDashboardStateStore.getState().setHasUnsavedChanges(true);
   return { type: ON_CHANGE };
 }
 
@@ -319,6 +344,7 @@ interface OnSaveAction {
 }
 
 export function onSave(lastModifiedTime: number): OnSaveAction {
+  useDashboardStateStore.getState().markSaved(lastModifiedTime);
   return { type: ON_SAVE, lastModifiedTime };
 }
 
@@ -334,17 +360,15 @@ export function setRefreshFrequency(
   refreshFrequency: number,
   isPersistent = false,
 ): SetRefreshFrequencyAction {
+  useDashboardStateStore
+    .getState()
+    .setRefreshFrequency(refreshFrequency, isPersistent);
   return { type: SET_REFRESH_FREQUENCY, refreshFrequency, isPersistent };
 }
 
-export function saveDashboardRequestSuccess(
-  lastModifiedTime: number,
-): (dispatch: AppDispatch) => void {
-  return (dispatch: AppDispatch) => {
-    dispatch(onSave(lastModifiedTime));
-    // clear layout undo history
-    dispatch(UndoActionCreators.clearHistory());
-  };
+export function saveDashboardRequestSuccess(lastModifiedTime: number): void {
+  onSave(lastModifiedTime);
+  useDashboardLayoutStore.temporal.getState().clear();
 }
 
 export const SET_OVERRIDE_CONFIRM = 'SET_OVERRIDE_CONFIRM';
@@ -357,10 +381,10 @@ interface SetOverrideConfirmAction {
 export function setOverrideConfirm(
   overwriteConfirmMetadata: DashboardState['overwriteConfirmMetadata'],
 ): SetOverrideConfirmAction {
-  return {
-    type: SET_OVERRIDE_CONFIRM,
-    overwriteConfirmMetadata,
-  };
+  useDashboardStateStore
+    .getState()
+    .setOverwriteConfirmMetadata(overwriteConfirmMetadata);
+  return { type: SET_OVERRIDE_CONFIRM, overwriteConfirmMetadata };
 }
 
 export const SAVE_DASHBOARD_STARTED = 'SAVE_DASHBOARD_STARTED';
@@ -370,6 +394,7 @@ interface SaveDashboardStartedAction {
 }
 
 export function saveDashboardStarted(): SaveDashboardStartedAction {
+  useDashboardStateStore.getState().setDashboardIsSaving(true);
   return { type: SAVE_DASHBOARD_STARTED };
 }
 
@@ -380,54 +405,30 @@ interface SaveDashboardFinishedAction {
 }
 
 export function saveDashboardFinished(): SaveDashboardFinishedAction {
+  useDashboardStateStore.getState().setDashboardIsSaving(false);
   return { type: SAVE_DASHBOARD_FINISHED };
 }
 
-export const SET_DASHBOARD_LABELS_COLORMAP_SYNCABLE =
-  'SET_DASHBOARD_LABELS_COLORMAP_SYNCABLE';
-export const SET_DASHBOARD_LABELS_COLORMAP_SYNCED =
-  'SET_DASHBOARD_LABELS_COLORMAP_SYNCED';
-export const SET_DASHBOARD_SHARED_LABELS_COLORS_SYNCABLE =
-  'SET_DASHBOARD_SHARED_LABELS_COLORS_SYNCABLE';
-export const SET_DASHBOARD_SHARED_LABELS_COLORS_SYNCED =
-  'SET_DASHBOARD_SHARED_LABELS_COLORS_SYNCED';
-
-interface SetDashboardLabelsColorMapSyncAction {
-  type: typeof SET_DASHBOARD_LABELS_COLORMAP_SYNCABLE;
+export function setDashboardLabelsColorMapSync(): void {
+  useDashboardStateStore.getState().setLabelsColorMapMustSync(true);
 }
 
-interface SetDashboardLabelsColorMapSyncedAction {
-  type: typeof SET_DASHBOARD_LABELS_COLORMAP_SYNCED;
+export function setDashboardLabelsColorMapSynced(): void {
+  useDashboardStateStore.getState().setLabelsColorMapMustSync(false);
 }
 
-interface SetDashboardSharedLabelsColorsSyncAction {
-  type: typeof SET_DASHBOARD_SHARED_LABELS_COLORS_SYNCABLE;
+export function setDashboardSharedLabelsColorsSync(): void {
+  useDashboardStateStore.getState().setSharedLabelsColorsMustSync(true);
 }
 
-interface SetDashboardSharedLabelsColorsSyncedAction {
-  type: typeof SET_DASHBOARD_SHARED_LABELS_COLORS_SYNCED;
-}
-
-export function setDashboardLabelsColorMapSync(): SetDashboardLabelsColorMapSyncAction {
-  return { type: SET_DASHBOARD_LABELS_COLORMAP_SYNCABLE };
-}
-
-export function setDashboardLabelsColorMapSynced(): SetDashboardLabelsColorMapSyncedAction {
-  return { type: SET_DASHBOARD_LABELS_COLORMAP_SYNCED };
-}
-
-export function setDashboardSharedLabelsColorsSync(): SetDashboardSharedLabelsColorsSyncAction {
-  return { type: SET_DASHBOARD_SHARED_LABELS_COLORS_SYNCABLE };
-}
-
-export function setDashboardSharedLabelsColorsSynced(): SetDashboardSharedLabelsColorsSyncedAction {
-  return { type: SET_DASHBOARD_SHARED_LABELS_COLORS_SYNCED };
+export function setDashboardSharedLabelsColorsSynced(): void {
+  useDashboardStateStore.getState().setSharedLabelsColorsMustSync(false);
 }
 
 export const setDashboardMetadata =
   (updatedMetadata: JsonObject) =>
-  async (dispatch: AppDispatch, getState: GetState): Promise<void> => {
-    const { dashboardInfo } = getState();
+  async (dispatch: AppDispatch): Promise<void> => {
+    const { dashboardInfo } = useDashboardInfoStore.getState();
     dispatch(
       dashboardInfoChanged({
         metadata: {
@@ -463,11 +464,11 @@ export function saveDashboardRequest(
   saveType: string,
 ): (dispatch: AppDispatch, getState: GetState) => Promise<JsonObject | void> {
   return (dispatch: AppDispatch, getState: GetState) => {
-    dispatch({ type: UPDATE_COMPONENTS_PARENTS_LIST });
     dispatch(saveDashboardStarted());
 
-    const { dashboardFilters, dashboardLayout } = getState();
-    const layout = dashboardLayout.present;
+    const { dashboardFilters } = getState();
+    // Layout lives in the Zustand store — that's the source of truth.
+    const { layout } = useDashboardLayoutStore.getState();
     Object.values(dashboardFilters).forEach((filter: JsonObject) => {
       const { chartId } = filter;
       const componentId = (filter.directPathToFilter as string[])
@@ -552,13 +553,10 @@ export function saveDashboardRequest(
     };
 
     const handleChartConfiguration = () => {
-      const {
-        dashboardLayout: currentDashboardLayout,
-        charts,
-        dashboardInfo: { metadata },
-      } = getState();
+      const { charts } = getState();
+      const { metadata } = useDashboardInfoStore.getState().dashboardInfo;
       return getCrossFiltersConfiguration(
-        currentDashboardLayout.present,
+        useDashboardLayoutStore.getState().layout,
         metadata,
         charts,
       );
@@ -568,7 +566,7 @@ export function saveDashboardRequest(
       const lastModifiedTime = (response.json as JsonObject).result
         ?.last_modified_time as number;
       if (lastModifiedTime) {
-        dispatch(saveDashboardRequestSuccess(lastModifiedTime));
+        saveDashboardRequestSuccess(lastModifiedTime);
       }
       const { chartConfiguration, globalChartConfiguration } =
         handleChartConfiguration();
@@ -604,6 +602,11 @@ export function saveDashboardRequest(
           });
         }
         if (parsedMetadata.native_filter_configuration) {
+          useNativeFiltersStore
+            .getState()
+            .setInScopeStatus(
+              parsedMetadata.native_filter_configuration as FilterEntry[],
+            );
           dispatch({
             type: SET_IN_SCOPE_STATUS_OF_FILTERS,
             filterConfig: parsedMetadata.native_filter_configuration,
@@ -630,7 +633,7 @@ export function saveDashboardRequest(
           });
       }
       if (lastModifiedTime) {
-        dispatch(saveDashboardRequestSuccess(lastModifiedTime));
+        saveDashboardRequestSuccess(lastModifiedTime);
       }
       dispatch(saveDashboardFinished());
       // redirect to the new slug or id
@@ -640,6 +643,9 @@ export function saveDashboardRequest(
 
       dispatch(addSuccessToast(t('This dashboard was saved successfully.')));
       dispatch(setOverrideConfirm(undefined));
+      // The snapshot predates this save; drop it so a later discard reloads.
+      queryClient.invalidateQueries({ queryKey: dashboardKeys.detail(id) });
+      dropHydrationSnapshot(id);
       return response;
     };
 
@@ -695,7 +701,11 @@ export function saveDashboardRequest(
           body: JSON.stringify(updatedDashboard),
         })
           .then(response => onUpdateSuccess(response))
-          .catch(response => onError(response));
+          .catch(async response => {
+            // Rethrow after side effects so TanStack sees a rejection.
+            await onError(response);
+            throw response;
+          });
       return new Promise<void>((resolve, reject) => {
         if (
           !isFeatureEnabled(FeatureFlag.ConfirmDashboardDiff) ||
@@ -736,15 +746,21 @@ export function saveDashboardRequest(
         });
       })
         .then(updateDashboard)
-        .catch((overwriteConfirmItems: JsonObject[]) => {
-          const errorText = t('Please confirm the overwrite values.');
+        .catch((reason: JsonObject[] | unknown) => {
+          // Precheck rejects with an array of overwrite items; PUT failures
+          // surface here too and must propagate so callers can detect them.
+          if (!Array.isArray(reason)) {
+            throw reason;
+          }
+          // Save deferred to the confirm modal; clear the saving overlay.
+          dispatch(saveDashboardFinished());
           dispatch(
             logEvent(LOG_ACTIONS_CONFIRM_OVERWRITE_DASHBOARD_METADATA, {
               dashboard_id: id,
-              items: overwriteConfirmItems,
+              items: reason,
             }),
           );
-          dispatch(addDangerToast(errorText));
+          dispatch(addDangerToast(t('Please confirm the overwrite values.')));
         });
     }
     // changing the data as the endpoint requires
@@ -782,8 +798,8 @@ export function fetchCharts(
   force = false,
   interval = 0,
   dashboardId?: number,
-): (dispatch: AppDispatch, getState: GetState) => Promise<void> {
-  return (dispatch: AppDispatch, getState: GetState) => {
+): (dispatch: AppDispatch) => Promise<void> {
+  return (dispatch: AppDispatch) => {
     if (!interval) {
       return Promise.all(
         chartList.map(chartKey =>
@@ -792,7 +808,7 @@ export function fetchCharts(
       ).then(() => undefined);
     }
 
-    const { metadata } = getState().dashboardInfo;
+    const { metadata } = useDashboardInfoStore.getState().dashboardInfo;
     const meta = metadata as JsonObject;
     const refreshTime = Math.max(
       interval,
@@ -846,6 +862,7 @@ interface OnFiltersRefreshAction {
 }
 
 export function onFiltersRefresh(): OnFiltersRefreshAction {
+  useDashboardStateStore.getState().setIsFiltersRefreshing(true);
   return { type: ON_FILTERS_REFRESH };
 }
 
@@ -856,6 +873,7 @@ interface OnFiltersRefreshSuccessAction {
 }
 
 export function onFiltersRefreshSuccess(): OnFiltersRefreshSuccessAction {
+  useDashboardStateStore.getState().setIsFiltersRefreshing(false);
   return { type: ON_FILTERS_REFRESH_SUCCESS };
 }
 
@@ -866,6 +884,7 @@ interface OnRefreshSuccessAction {
 }
 
 export function onRefreshSuccess(): OnRefreshSuccessAction {
+  useDashboardStateStore.getState().setIsRefreshing(false);
   return { type: ON_REFRESH_SUCCESS };
 }
 
@@ -883,6 +902,8 @@ export function onRefresh(
     // Only dispatch ON_REFRESH for dashboard-level refreshes
     // Skip it for lazy-loaded tabs to prevent infinite loops
     if (!isLazyLoad) {
+      useDashboardStateStore.getState().setIsRefreshing(true);
+      useDashboardStateStore.getState().recordRefreshTime();
       dispatch({ type: ON_REFRESH });
     }
 
@@ -917,10 +938,11 @@ export function showBuilderPane(): ShowBuilderPaneAction {
 
 export function addSliceToDashboard(
   id: number,
-): (dispatch: AppDispatch, getState: GetState) => Promise<void> | AnyAction {
-  return (dispatch: AppDispatch, getState: GetState) => {
-    const { sliceEntities } = getState();
-    const selectedSlice = sliceEntities.slices[id];
+): (dispatch: AppDispatch) => Promise<void> | AnyAction {
+  return (dispatch: AppDispatch) => {
+    // Slices store first (hydrated charts), slices-query cache as fallback (panel adds).
+    const selectedSlice =
+      useDashboardSlicesStore.getState().slices[id] ?? getCachedSlice(id);
     if (!selectedSlice) {
       return dispatch(
         addWarningToast(
@@ -928,6 +950,7 @@ export function addSliceToDashboard(
         ),
       );
     }
+    useDashboardSlicesStore.getState().addSlice(selectedSlice);
     const form_data = {
       ...selectedSlice.form_data,
       slice_id: selectedSlice.slice_id,
@@ -953,7 +976,7 @@ export function removeSliceFromDashboard(
   id: number,
 ): (dispatch: AppDispatch) => void {
   return (dispatch: AppDispatch) => {
-    dispatch(removeSlice(id));
+    removeSlice(id);
     dispatch(removeChart(id));
     getLabelsColorMap().removeSlice(id);
   };
@@ -967,6 +990,7 @@ interface SetColorSchemeAction {
 }
 
 export function setColorScheme(colorScheme: string): SetColorSchemeAction {
+  useDashboardStateStore.getState().setColorScheme(colorScheme);
   return { type: SET_COLOR_SCHEME, colorScheme };
 }
 
@@ -978,6 +1002,7 @@ interface SetDirectPathAction {
 }
 
 export function setDirectPathToChild(path: string[]): SetDirectPathAction {
+  useDashboardStateStore.getState().setDirectPathToChild(path);
   return { type: SET_DIRECT_PATH, path };
 }
 
@@ -995,12 +1020,11 @@ interface FindTabsToRestoreResult {
 function findTabsToRestore(
   tabId: string,
   prevTabId: string | undefined,
-  dashboardState: DashboardState,
-  dashboardLayout: RootState['dashboardLayout'],
+  dashboardState: Pick<DashboardState, 'activeTabs' | 'inactiveTabs'>,
+  currentLayout: DashboardLayout,
 ): FindTabsToRestoreResult {
   const { activeTabs: prevActiveTabs, inactiveTabs: prevInactiveTabs } =
     dashboardState;
-  const { present: currentLayout } = dashboardLayout;
   const restoredTabs: string[] = [];
   const queue: string[] = [tabId];
   const visited = new Set<string>();
@@ -1047,13 +1071,16 @@ export function setActiveTab(
   prevTabId?: string,
 ): (dispatch: AppDispatch, getState: GetState) => SetActiveTabAction {
   return (dispatch: AppDispatch, getState: GetState) => {
-    const { dashboardLayout, dashboardState } = getState();
     const { activeTabs, inactiveTabs } = findTabsToRestore(
       tabId,
       prevTabId,
-      dashboardState,
-      dashboardLayout,
+      useDashboardStateStore.getState(),
+      useDashboardLayoutStore.getState().layout,
     );
+
+    useDashboardStateStore
+      .getState()
+      .applyActiveTab(activeTabs, inactiveTabs, prevTabId);
 
     return dispatch({
       type: SET_ACTIVE_TAB,
@@ -1074,6 +1101,7 @@ interface SetActiveTabsAction {
 }
 
 export function setActiveTabs(activeTabs: string[]): SetActiveTabsAction {
+  useDashboardStateStore.getState().setActiveTabs(activeTabs);
   return { type: SET_ACTIVE_TABS, activeTabs };
 }
 
@@ -1093,6 +1121,7 @@ export function setFocusedFilterField(
   chartId: number,
   column: string,
 ): SetFocusedFilterFieldAction {
+  useDashboardStateStore.getState().setFocusedFilterField(chartId, column);
   return { type: SET_FOCUSED_FILTER_FIELD, chartId, column };
 }
 
@@ -1108,6 +1137,7 @@ export function unsetFocusedFilterField(
   chartId: number,
   column: string,
 ): UnsetFocusedFilterFieldAction {
+  useDashboardStateStore.getState().unsetFocusedFilterField(chartId, column);
   return { type: UNSET_FOCUSED_FILTER_FIELD, chartId, column };
 }
 
@@ -1147,6 +1177,9 @@ export function updateChartState(
   vizType: string,
   chartState: AgGridChartState,
 ): UpdateChartStateAction {
+  useDashboardStateStore
+    .getState()
+    .updateChartState(chartId, vizType, chartState);
   return {
     type: UPDATE_CHART_STATE,
     chartId,
@@ -1164,6 +1197,7 @@ interface RemoveChartStateAction {
 }
 
 export function removeChartState(chartId: number): RemoveChartStateAction {
+  useDashboardStateStore.getState().removeChartState(chartId);
   return { type: REMOVE_CHART_STATE, chartId };
 }
 
@@ -1177,6 +1211,7 @@ interface RestoreChartStatesAction {
 export function restoreChartStates(
   chartStates: DashboardChartStates,
 ): RestoreChartStatesAction {
+  useDashboardStateStore.getState().restoreChartStates(chartStates);
   return { type: RESTORE_CHART_STATES, chartStates };
 }
 
@@ -1187,6 +1222,7 @@ interface ClearAllChartStatesAction {
 }
 
 export function clearAllChartStates(): ClearAllChartStatesAction {
+  useDashboardStateStore.getState().clearAllChartStates();
   return { type: CLEAR_ALL_CHART_STATES };
 }
 
@@ -1204,6 +1240,9 @@ interface SetMaxUndoHistoryExceededAction {
 export function setMaxUndoHistoryExceeded(
   maxUndoHistoryExceeded = true,
 ): SetMaxUndoHistoryExceededAction {
+  useDashboardStateStore
+    .getState()
+    .setMaxUndoHistoryExceeded(maxUndoHistoryExceeded);
   return {
     type: SET_MAX_UNDO_HISTORY_EXCEEDED,
     payload: { maxUndoHistoryExceeded },
@@ -1214,9 +1253,9 @@ export function maxUndoHistoryToast(): (
   dispatch: AppDispatch,
   getState: GetState,
 ) => AnyAction {
-  return (dispatch: AppDispatch, getState: GetState) => {
-    const { dashboardLayout } = getState();
-    const historyLength = dashboardLayout.past.length;
+  return (dispatch: AppDispatch) => {
+    const historyLength =
+      useDashboardLayoutStore.temporal.getState().pastStates.length;
 
     return dispatch(
       addWarningToast(
@@ -1243,6 +1282,7 @@ interface SetDatasetsStatusAction {
 export function setDatasetsStatus(
   status: ResourceStatus,
 ): SetDatasetsStatusAction {
+  useDashboardStateStore.getState().setDatasetsStatus(status);
   return {
     type: SET_DATASETS_STATUS,
     status,
@@ -1279,15 +1319,14 @@ const storeDashboardColorConfig = async (
  */
 export const persistDashboardLabelsColor =
   () =>
-  async (dispatch: AppDispatch, getState: GetState): Promise<void> => {
-    const {
-      dashboardInfo: { id, metadata },
-      dashboardState: { labelsColorMapMustSync, sharedLabelsColorsMustSync },
-    } = getState();
+  async (dispatch: AppDispatch): Promise<void> => {
+    const { id, metadata } = useDashboardInfoStore.getState().dashboardInfo;
+    const { labelsColorMapMustSync, sharedLabelsColorsMustSync } =
+      useDashboardStateStore.getState();
 
     if (labelsColorMapMustSync || sharedLabelsColorsMustSync) {
-      dispatch(setDashboardLabelsColorMapSynced());
-      dispatch(setDashboardSharedLabelsColorsSynced());
+      setDashboardLabelsColorMapSynced();
+      setDashboardSharedLabelsColorsSynced();
       storeDashboardColorConfig(id, metadata);
     }
   };
@@ -1380,7 +1419,7 @@ export const applyDashboardLabelsColorOnLoad =
       }
 
       if (hasChanged) {
-        dispatch(setDashboardLabelsColorMapSync());
+        setDashboardLabelsColorMapSync();
       }
     } catch (e) {
       logging.error('Failed to update dashboard color on load:', e);
@@ -1398,9 +1437,7 @@ export const ensureSyncedLabelsColorMap =
   (metadata: JsonObject) =>
   (dispatch: AppDispatch, getState: GetState): void => {
     const syncLabelsColorMap = (): void => {
-      const {
-        dashboardState: { labelsColorMapMustSync },
-      } = getState();
+      const { labelsColorMapMustSync } = useDashboardStateStore.getState();
       const customLabelsColor = (metadata.label_colors || {}) as Record<
         string,
         string
@@ -1427,7 +1464,7 @@ export const ensureSyncedLabelsColorMap =
 
       if (!isMapSynced && !labelsColorMapMustSync) {
         // prepare to persist the just applied labels color map
-        dispatch(setDashboardLabelsColorMapSync());
+        setDashboardLabelsColorMapSync();
       }
     };
     promiseTimeout(syncLabelsColorMap, 500);
@@ -1445,9 +1482,7 @@ export const ensureSyncedSharedLabelsColors =
   (metadata: JsonObject, forceFresh = false) =>
   (dispatch: AppDispatch, getState: GetState): void => {
     const syncSharedLabelsColors = (): void => {
-      const {
-        dashboardState: { sharedLabelsColorsMustSync },
-      } = getState();
+      const { sharedLabelsColorsMustSync } = useDashboardStateStore.getState();
       const sharedLabelsColors = enforceSharedLabelsColorsArray(
         metadata.shared_label_colors,
       );
@@ -1470,7 +1505,7 @@ export const ensureSyncedSharedLabelsColors =
 
       if (mustSync && !sharedLabelsColorsMustSync) {
         // prepare to persist the shared labels colors
-        dispatch(setDashboardSharedLabelsColorsSync());
+        setDashboardSharedLabelsColorsSync();
       }
     };
     promiseTimeout(syncSharedLabelsColors, 500);
@@ -1487,10 +1522,8 @@ export const updateDashboardLabelsColor =
   (renderedChartIds: number[]) =>
   (_: AppDispatch, getState: GetState): void => {
     try {
-      const {
-        dashboardInfo: { metadata },
-        charts,
-      } = getState();
+      const { charts } = getState();
+      const { metadata } = useDashboardInfoStore.getState().dashboardInfo;
       const colorScheme = metadata.color_scheme as string | undefined;
       const labelsColorMapInstance = getLabelsColorMap();
       const sharedLabelsColors = enforceSharedLabelsColorsArray(

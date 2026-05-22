@@ -26,6 +26,8 @@ import {
   ChartCustomizationType,
   ChartCustomizationDivider,
 } from '@superset-ui/core';
+import { useDashboardInfoStore } from 'src/dashboard/stores';
+import type { DashboardInfo } from 'src/dashboard/types';
 import { FilterBarOrientation } from 'src/dashboard/types';
 import FilterControls from './FilterControls';
 
@@ -38,6 +40,13 @@ const mockStoreForCustomization = {
     filterBarOrientation: FilterBarOrientation.Vertical,
   },
 };
+
+beforeEach(() => {
+  useDashboardInfoStore.setState({
+    dashboardInfo:
+      mockStoreForCustomization.dashboardInfo as unknown as DashboardInfo,
+  });
+});
 
 jest.mock('react-redux', () => ({
   ...jest.requireActual('react-redux'),
@@ -114,6 +123,9 @@ test('renders chart customization divider in horizontal mode', () => {
     (selector: (state: typeof horizontalStore) => unknown) =>
       selector(horizontalStore),
   );
+  useDashboardInfoStore.setState({
+    dashboardInfo: horizontalStore.dashboardInfo as unknown as DashboardInfo,
+  });
 
   const divider: ChartCustomizationDivider = {
     id: 'CHART_CUSTOMIZATION_DIVIDER-abc123',
@@ -178,7 +190,7 @@ test('renders divider with description icon in vertical mode when description ex
   expect(
     screen.getByRole('heading', { name: 'Divider With Description' }),
   ).toBeInTheDocument();
-  expect(screen.queryByTestId('divider-description-icon')).toBeInTheDocument();
+  expect(screen.queryByTestId('divider-description')).toBeInTheDocument();
 });
 
 test('renders empty state when no chart customizations provided', () => {

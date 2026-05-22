@@ -25,7 +25,6 @@ import {
   useTruncation,
   ChartCustomization,
   NativeFilterTarget,
-  Filters,
   NativeFilterType,
 } from '@superset-ui/core';
 import {
@@ -45,8 +44,9 @@ import {
   FormItem,
 } from '@superset-ui/core/components';
 import { propertyComparator } from '@superset-ui/core/components/Select/utils';
-import { useDispatch, useSelector } from 'react-redux';
-import { RootState } from 'src/dashboard/types';
+import { useDispatch } from 'react-redux';
+import { useDataMaskStore } from 'src/dataMask/useDataMaskStore';
+import { useNativeFiltersStore } from 'src/dashboard/stores';
 import { setPendingChartCustomization } from 'src/dashboard/actions/chartCustomizationActions';
 import { TooltipWithTruncation } from 'src/dashboard/components/nativeFilters/FilterCard/TooltipWithTruncation';
 import { addDangerToast } from 'src/components/MessageToasts/actions';
@@ -307,12 +307,12 @@ const GroupByFilterCard: FC<GroupByFilterCardProps> = ({
   }, []);
 
   const setHoveredChartCustomization = useCallback(
-    () => dispatchChartCustomizationHoverAction(dispatch, customizationItem.id),
+    () => dispatchChartCustomizationHoverAction(customizationItem.id),
     [dispatch, customizationItem.id],
   );
 
   const unsetHoveredChartCustomization = useCallback(
-    () => dispatchChartCustomizationHoverAction(dispatch),
+    () => dispatchChartCustomizationHoverAction(),
     [dispatch],
   );
 
@@ -321,9 +321,7 @@ const GroupByFilterCard: FC<GroupByFilterCardProps> = ({
     [customizationItem.controlValues?.enableEmptyFilter],
   );
 
-  const dataMask = useSelector<RootState, DataMaskStateWithId>(
-    state => state.dataMask,
-  );
+  const dataMask = useDataMaskStore(s => s.dataMask);
 
   const effectiveDataMask = dataMaskSelected ?? dataMask;
 
@@ -420,9 +418,7 @@ const GroupByFilterCard: FC<GroupByFilterCardProps> = ({
     ],
   );
 
-  const filters = useSelector<RootState, Filters>(
-    state => state.nativeFilters.filters,
-  );
+  const filters = useNativeFiltersStore(s => s.filters);
 
   const dependencies = useMemo(() => {
     let deps = {};

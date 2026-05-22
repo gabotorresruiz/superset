@@ -43,13 +43,17 @@ import {
 } from '@superset-ui/core';
 import { styled, SupersetTheme } from '@apache-superset/core/theme';
 import { useTheme } from '@emotion/react';
-import { useDispatch, useSelector } from 'react-redux';
+import { useDispatch } from 'react-redux';
+import {
+  useDashboardStateStore,
+  useDashboardInfoStore,
+} from 'src/dashboard/stores';
 import { isEqual, isEqualWith } from 'lodash';
 import { getChartDataRequest } from 'src/components/Chart/chartAction';
 import { ErrorAlert, ErrorMessageWithStackTrace } from 'src/components';
 import { Loading, Constants, Flex } from '@superset-ui/core/components';
 import { waitForAsyncData } from 'src/middleware/asyncEvent';
-import { FilterBarOrientation, RootState } from 'src/dashboard/types';
+import { FilterBarOrientation } from 'src/dashboard/types';
 import {
   onFiltersRefreshSuccess,
   setDirectPathToChild,
@@ -115,12 +119,8 @@ export const applyTimeGrainAllowlist = (
 };
 
 const useShouldFilterRefresh = () => {
-  const isDashboardRefreshing = useSelector<RootState, boolean>(
-    state => state.dashboardState.isRefreshing,
-  );
-  const isFilterRefreshing = useSelector<RootState, boolean>(
-    state => state.dashboardState.isFiltersRefreshing,
-  );
+  const isDashboardRefreshing = useDashboardStateStore(s => s.isRefreshing);
+  const isFilterRefreshing = useDashboardStateStore(s => s.isFiltersRefreshing);
 
   // trigger filter requests only after charts requests were triggered
   return !isDashboardRefreshing && isFilterRefreshing;
@@ -165,9 +165,7 @@ const FilterValue: FC<FilterValueProps> = ({
   const [state, setState] = useState<ChartDataResponseResult[]>([]);
   const hasDeps = Boolean(filter.cascadeParentIds?.length);
   const [hasDepsFilterValue, setHasDepsFilterValue] = useState(hasDeps);
-  const dashboardId = useSelector<RootState, number>(
-    state => state.dashboardInfo.id,
-  );
+  const dashboardId = useDashboardInfoStore(s => s.dashboardInfo.id);
 
   const [error, setError] = useState<ClientErrorObject>();
   const [formData, setFormData] = useState<Partial<QueryFormData>>({
@@ -372,7 +370,7 @@ const FilterValue: FC<FilterValueProps> = ({
       return;
     }
     if (outlinedFilterId !== id) {
-      dispatchFocusAction(dispatch, id);
+      dispatchFocusAction(id);
     }
   }, [dispatch, id, outlinedFilterId, isCustomization]);
 
@@ -380,7 +378,7 @@ const FilterValue: FC<FilterValueProps> = ({
     if (isCustomization) {
       return;
     }
-    dispatchFocusAction(dispatch);
+    dispatchFocusAction();
     if (outlinedFilterId === id) {
       dispatch(setDirectPathToChild([]));
     }
@@ -388,17 +386,17 @@ const FilterValue: FC<FilterValueProps> = ({
 
   const setHoveredFilter = useCallback(() => {
     if (isCustomization) {
-      dispatch(setHoveredChartCustomization(id));
+      setHoveredChartCustomization(id);
     } else {
-      dispatchHoverAction(dispatch, id);
+      dispatchHoverAction(id);
     }
   }, [dispatch, id, isCustomization]);
 
   const unsetHoveredFilter = useCallback(() => {
     if (isCustomization) {
-      dispatch(unsetHoveredChartCustomization());
+      unsetHoveredChartCustomization();
     } else {
-      dispatchHoverAction(dispatch);
+      dispatchHoverAction();
     }
   }, [dispatch, isCustomization]);
 

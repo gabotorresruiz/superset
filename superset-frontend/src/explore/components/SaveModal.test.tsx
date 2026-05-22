@@ -30,7 +30,7 @@ import fetchMock from 'fetch-mock';
 
 import * as saveModalActions from 'src/explore/actions/saveModalActions';
 import SaveModal, { PureSaveModal } from 'src/explore/components/SaveModal';
-import * as dashboardStateActions from 'src/dashboard/actions/dashboardState';
+import { useDashboardStateStore } from 'src/dashboard/stores';
 import { CHART_WIDTH } from 'src/dashboard/constants';
 import { GRID_COLUMN_COUNT } from 'src/dashboard/util/constants';
 
@@ -454,10 +454,10 @@ test('removes form_data_key from URL parameters after save', () => {
   expect(result.has('save_action')).toBe(false);
 });
 
-test('dispatches removeChartState when saving and going to dashboard', async () => {
-  // Spy on the removeChartState action creator
+test('removeChartState clears the chart state when saving and going to dashboard', async () => {
+  // Spy on the Zustand store action
   const removeChartStateSpy = jest.spyOn(
-    dashboardStateActions,
+    useDashboardStateStore.getState(),
     'removeChartState',
   );
 
@@ -520,13 +520,6 @@ test('dispatches removeChartState when saving and going to dashboard', async () 
 
   // Verify removeChartState was called with the correct chart ID
   expect(removeChartStateSpy).toHaveBeenCalledWith(chartId);
-
-  // Verify the action was dispatched (check the action object directly)
-  expect(mockDispatch).toHaveBeenCalled();
-  expect(mockDispatch).toHaveBeenCalledWith({
-    type: 'REMOVE_CHART_STATE',
-    chartId,
-  });
 
   // Verify navigation happened
   expect(mockHistory.push).toHaveBeenCalled();

@@ -19,7 +19,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ErrorInfo } from 'react';
 import { connect } from 'react-redux';
+import { useStore } from 'zustand';
 import cx from 'classnames';
+import { useDashboardLayoutStore } from 'src/dashboard/stores';
 import type { JsonObject } from '@superset-ui/core';
 import type { ResizeStartCallback, ResizeCallback } from 're-resizable';
 import { ErrorBoundary } from 'src/components';
@@ -71,13 +73,15 @@ export interface MarkdownOwnProps {
   deleteComponent: (id: string, parentId: string) => void;
   handleComponentDrop: (dropResult: DropResult) => void;
   updateComponents: (components: Record<string, LayoutItem>) => void;
+
+  // zundo undo/redo history lengths, injected by the wrapper
+  undoLength: number;
+  redoLength: number;
 }
 
 export interface MarkdownStateProps {
   logEvent: (eventName: string, eventData: JsonObject) => void;
   addDangerToast: (msg: string) => void;
-  undoLength: number;
-  redoLength: number;
   htmlSanitization?: boolean;
   htmlSchemaOverrides?: JsonObject;
 }
@@ -447,10 +451,6 @@ function Markdown({
 }
 
 interface ReduxState {
-  dashboardLayout: {
-    past: unknown[];
-    future: unknown[];
-  };
   common: {
     conf: {
       HTML_SANITIZATION?: boolean;
@@ -463,10 +463,34 @@ function mapStateToProps(
   state: ReduxState,
 ): Omit<MarkdownStateProps, 'logEvent' | 'addDangerToast'> {
   return {
-    undoLength: state.dashboardLayout.past.length,
-    redoLength: state.dashboardLayout.future.length,
     htmlSanitization: state.common.conf.HTML_SANITIZATION,
     htmlSchemaOverrides: state.common.conf.HTML_SANITIZATION_SCHEMA_EXTENSIONS,
   };
 }
-export default connect(mapStateToProps)(Markdown);
+
+const ConnectedMarkdown = connect(mapStateToProps)(Markdown);
+
+type MarkdownWithHistoryProps = Omit<
+  MarkdownProps,
+  'undoLength' | 'redoLength' | 'htmlSanitization' | 'htmlSchemaOverrides'
+>;
+
+const MarkdownWithHistory = (props: MarkdownWithHistoryProps) => {
+  const undoLength = useStore(
+    useDashboardLayoutStore.temporal,
+    s => s.pastStates.length,
+  );
+  const redoLength = useStore(
+    useDashboardLayoutStore.temporal,
+    s => s.futureStates.length,
+  );
+  return (
+    <ConnectedMarkdown
+      {...props}
+      undoLength={undoLength}
+      redoLength={redoLength}
+    />
+  );
+};
+
+export default MarkdownWithHistory;

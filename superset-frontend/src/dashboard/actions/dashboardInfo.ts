@@ -24,9 +24,13 @@ import {
   ChartConfiguration,
   DashboardInfo,
   FilterBarOrientation,
+  FilterConfigItem,
   GlobalChartCrossFilterConfig,
-  RootState,
 } from 'src/dashboard/types';
+import { useDashboardInfoStore } from 'src/dashboard/stores';
+import { rebaselineHydrationDashboardInfo } from 'src/dashboard/util/rebaselineHydrationDashboardInfo';
+import { queryClient } from 'src/queries/queryClient';
+import { dashboardKeys } from 'src/dashboard/queries';
 import { onSave } from './dashboardState';
 
 const createUpdateDashboardApi = (id: number) =>
@@ -39,15 +43,15 @@ const createUpdateDashboardApi = (id: number) =>
   });
 
 export const DASHBOARD_INFO_UPDATED = 'DASHBOARD_INFO_UPDATED';
-export const DASHBOARD_INFO_FILTERS_CHANGED = 'DASHBOARD_INFO_FILTERS_CHANGED';
 
 // updates partially changed dashboard info
 export function dashboardInfoChanged(newInfo: Partial<DashboardInfo>) {
+  useDashboardInfoStore.getState().setDashboardInfo(newInfo);
   return { type: DASHBOARD_INFO_UPDATED, newInfo };
 }
 
-export function nativeFiltersConfigChanged(newInfo: Record<string, any>) {
-  return { type: DASHBOARD_INFO_FILTERS_CHANGED, newInfo };
+export function nativeFiltersConfigChanged(newInfo: FilterConfigItem[]): void {
+  useDashboardInfoStore.getState().setNativeFiltersConfig(newInfo);
 }
 
 export const SAVE_CHART_CONFIG_BEGIN = 'SAVE_CHART_CONFIG_BEGIN';
@@ -62,13 +66,13 @@ export const saveChartConfiguration =
     chartConfiguration?: ChartConfiguration;
     globalChartConfiguration?: GlobalChartCrossFilterConfig;
   }) =>
-  async (dispatch: Dispatch, getState: () => RootState) => {
+  async (dispatch: Dispatch) => {
     dispatch({
       type: SAVE_CHART_CONFIG_BEGIN,
       chartConfiguration,
       globalChartConfiguration,
     });
-    const { id, metadata } = getState().dashboardInfo;
+    const { id, metadata } = useDashboardInfoStore.getState().dashboardInfo;
 
     const updateDashboard = createUpdateDashboardApi(id);
 
@@ -92,6 +96,8 @@ export const saveChartConfiguration =
         chartConfiguration,
         globalChartConfiguration,
       });
+      rebaselineHydrationDashboardInfo(id);
+      queryClient.invalidateQueries({ queryKey: dashboardKeys.detail(id) });
     } catch (err) {
       dispatch({
         type: SAVE_CHART_CONFIG_FAIL,
@@ -107,18 +113,22 @@ export const SET_FILTER_BAR_ORIENTATION = 'SET_FILTER_BAR_ORIENTATION';
 export function setFilterBarOrientation(
   filterBarOrientation: FilterBarOrientation,
 ) {
+  useDashboardInfoStore
+    .getState()
+    .setFilterBarOrientation(filterBarOrientation);
   return { type: SET_FILTER_BAR_ORIENTATION, filterBarOrientation };
 }
 
 export const SET_CROSS_FILTERS_ENABLED = 'SET_CROSS_FILTERS_ENABLED';
 
 export function setCrossFiltersEnabled(crossFiltersEnabled: boolean) {
+  useDashboardInfoStore.getState().setCrossFiltersEnabled(crossFiltersEnabled);
   return { type: SET_CROSS_FILTERS_ENABLED, crossFiltersEnabled };
 }
 
 export function saveFilterBarOrientation(orientation: FilterBarOrientation) {
-  return async (dispatch: Dispatch, getState: () => RootState) => {
-    const { id, metadata } = getState().dashboardInfo;
+  return async (dispatch: Dispatch) => {
+    const { id, metadata } = useDashboardInfoStore.getState().dashboardInfo;
     const updateDashboard = createUpdateDashboardApi(id);
     try {
       const response = await updateDashboard({
@@ -138,6 +148,8 @@ export function saveFilterBarOrientation(orientation: FilterBarOrientation) {
       if (lastModifiedTime) {
         dispatch(onSave(lastModifiedTime));
       }
+      rebaselineHydrationDashboardInfo(id);
+      queryClient.invalidateQueries({ queryKey: dashboardKeys.detail(id) });
     } catch (errorObject) {
       const { error } = await getClientErrorObject(errorObject);
       dispatch(
@@ -154,14 +166,12 @@ export function saveFilterBarOrientation(orientation: FilterBarOrientation) {
 }
 
 export function saveCrossFiltersSetting(crossFiltersEnabled: boolean) {
-  return async function saveCrossFiltersSettingThunk(
-    dispatch: Dispatch,
-    getState: () => RootState,
-  ) {
-    const { id, metadata } = getState().dashboardInfo;
-
-    const previousCrossFiltersEnabled =
-      getState().dashboardInfo.crossFiltersEnabled;
+  return async function saveCrossFiltersSettingThunk(dispatch: Dispatch) {
+    const {
+      id,
+      metadata,
+      crossFiltersEnabled: previousCrossFiltersEnabled,
+    } = useDashboardInfoStore.getState().dashboardInfo;
 
     dispatch(setCrossFiltersEnabled(crossFiltersEnabled));
     const updateDashboard = createUpdateDashboardApi(id);
@@ -191,6 +201,8 @@ export function saveCrossFiltersSetting(crossFiltersEnabled: boolean) {
           metadata: JSON.parse(response.result.json_metadata || '{}'),
         }),
       );
+      rebaselineHydrationDashboardInfo(id);
+      queryClient.invalidateQueries({ queryKey: dashboardKeys.detail(id) });
       return response;
     } catch (err) {
       dispatch(setCrossFiltersEnabled(previousCrossFiltersEnabled));

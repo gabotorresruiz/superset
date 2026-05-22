@@ -19,6 +19,12 @@
 import fetchMock from 'fetch-mock';
 import { ChartCustomization, ChartCustomizationType } from '@superset-ui/core';
 import {
+  useNativeFiltersStore,
+  useDashboardInfoStore,
+  type FilterEntry,
+} from 'src/dashboard/stores';
+import type { DashboardInfo } from 'src/dashboard/types';
+import {
   setInScopeStatusOfCustomizations,
   saveChartCustomization,
 } from './chartCustomizationActions';
@@ -41,6 +47,16 @@ function setup(stateOverrides: Record<string, unknown> = {}) {
     },
     ...stateOverrides,
   };
+  // setInScopeStatusOfCustomizations / saveChartCustomization read the filter
+  // config from the native-filters Zustand store, and dashboardInfo (id +
+  // metadata) from the dashboardInfo Zustand store, not Redux getState().
+  const nativeFilters = state.nativeFilters as
+    | { filters?: Record<string, FilterEntry> }
+    | undefined;
+  useNativeFiltersStore.setState({ filters: nativeFilters?.filters ?? {} });
+  useDashboardInfoStore.setState({
+    dashboardInfo: (state.dashboardInfo ?? {}) as unknown as DashboardInfo,
+  });
   const getState = jest.fn(() => state) as unknown as () => any;
   const dispatch = jest.fn();
   return { getState, dispatch, state };

@@ -16,9 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useSelector } from 'react-redux';
 import { useCallback, useMemo } from 'react';
-import { createSelector } from '@reduxjs/toolkit';
+import {
+  useDashboardStateStore,
+  useDashboardLayoutStore,
+  useNativeFiltersStore,
+  useDashboardInfoStore,
+} from 'src/dashboard/stores';
 import {
   Filter,
   Divider,
@@ -29,7 +33,7 @@ import {
   NativeFilterType,
 } from '@superset-ui/core';
 import { FilterElement } from './FilterBar/FilterControls/types';
-import { ActiveTabs, DashboardLayout, RootState } from '../../types';
+import { ActiveTabs, FilterConfigItem } from '../../types';
 import { CHART_TYPE, TAB_TYPE, TABS_TYPE } from '../../util/componentTypes';
 import { DASHBOARD_ROOT_ID } from '../../util/constants';
 import { isChartCustomizationId } from './FiltersConfigModal/utils';
@@ -42,94 +46,94 @@ const EMPTY_ARRAY: ChartCustomizationConfiguration = [];
 const EMPTY_ACTIVE_TABS: ActiveTabs = [];
 const defaultFilterConfiguration: (Filter | Divider)[] = [];
 
-export const selectFilterConfiguration: (
-  state: RootState,
-) => (Filter | Divider)[] = createSelector(
-  (state: RootState) =>
-    state.dashboardInfo?.metadata?.native_filter_configuration,
-  (nativeFilterConfig): (Filter | Divider)[] => {
-    if (!nativeFilterConfig) {
-      return defaultFilterConfiguration;
-    }
-    return nativeFilterConfig.filter(
-      (
-        filter:
-          | Filter
-          | Divider
-          | ChartCustomization
-          | ChartCustomizationDivider,
-      ) =>
-        filter.type !== 'CHART_CUSTOMIZATION' &&
-        filter.type !== 'CHART_CUSTOMIZATION_DIVIDER',
-    ) as (Filter | Divider)[];
-  },
-);
+/** Drops chart-customization entries, keeping only native filters and dividers. */
+function selectFilterConfiguration(
+  nativeFilterConfig: FilterConfigItem[] | undefined,
+): (Filter | Divider)[] {
+  if (!nativeFilterConfig) {
+    return defaultFilterConfiguration;
+  }
+  return nativeFilterConfig.filter(
+    (
+      filter: Filter | Divider | ChartCustomization | ChartCustomizationDivider,
+    ) =>
+      filter.type !== 'CHART_CUSTOMIZATION' &&
+      filter.type !== 'CHART_CUSTOMIZATION_DIVIDER',
+  ) as (Filter | Divider)[];
+}
 
 export function useFilterConfiguration() {
-  return useSelector(selectFilterConfiguration);
+  const nativeFilterConfig = useDashboardInfoStore(
+    s => s.dashboardInfo?.metadata?.native_filter_configuration,
+  );
+  return useMemo(
+    () => selectFilterConfiguration(nativeFilterConfig),
+    [nativeFilterConfig],
+  );
 }
 
-export const selectChartCustomizationFromRedux: (
-  state: RootState,
-) => (ChartCustomization | ChartCustomizationDivider)[] = createSelector(
-  (state: RootState) => state.nativeFilters?.filters || {},
-  (filtersMap): (ChartCustomization | ChartCustomizationDivider)[] =>
-    Object.values(filtersMap).filter(
-      (
-        item: Filter | Divider | ChartCustomization | ChartCustomizationDivider,
-      ): item is ChartCustomization | ChartCustomizationDivider =>
-        item?.id != null && isChartCustomizationId(item.id),
-    ),
-);
-
-export function useChartCustomizationFromRedux() {
-  return useSelector(selectChartCustomizationFromRedux);
+export function useChartCustomizations() {
+  const filtersMap = useNativeFiltersStore(s => s.filters);
+  return useMemo(
+    (): (ChartCustomization | ChartCustomizationDivider)[] =>
+      Object.values(filtersMap).filter(
+        (
+          item:
+            | Filter
+            | Divider
+            | ChartCustomization
+            | ChartCustomizationDivider,
+        ): item is ChartCustomization | ChartCustomizationDivider =>
+          item?.id != null && isChartCustomizationId(item.id),
+      ),
+    [filtersMap],
+  );
 }
 
-const selectDashboardChartIds = createSelector(
-  (state: RootState) => state.dashboardLayout?.present,
-  (dashboardLayout): Set<number> =>
-    new Set(
+function filterCustomizationsForDashboard(
+  allCustomizations: ChartCustomizationConfiguration,
+  dashboardChartIds: Set<number>,
+): ChartCustomizationConfiguration {
+  const truthyCustomizations = allCustomizations.filter(Boolean);
+
+  const hasLegacyFormat = truthyCustomizations.some(item =>
+    isLegacyChartCustomizationFormat(item),
+  );
+
+  const migratedCustomizations = hasLegacyFormat
+    ? migrateChartCustomizationArray(truthyCustomizations)
+    : (truthyCustomizations as ChartCustomizationConfiguration);
+
+  return migratedCustomizations.filter(customization => {
+    if (
+      !customization.chartsInScope ||
+      customization.chartsInScope.length === 0
+    ) {
+      return true;
+    }
+
+    return customization.chartsInScope.some((chartId: number) =>
+      dashboardChartIds.has(chartId),
+    );
+  });
+}
+
+export function useChartCustomizationConfiguration() {
+  const allCustomizations = useDashboardInfoStore(
+    s => s.dashboardInfo?.metadata?.chart_customization_config || EMPTY_ARRAY,
+  );
+  const dashboardLayout = useDashboardLayoutStore(s => s.layout);
+  return useMemo(() => {
+    const dashboardChartIds = new Set(
       Object.values(dashboardLayout)
         .filter(item => item.type === CHART_TYPE && item.meta?.chartId)
         .map(item => item.meta.chartId!),
-    ),
-);
-
-const selectChartCustomizationConfiguration = createSelector(
-  [
-    (state: RootState) =>
-      state.dashboardInfo?.metadata?.chart_customization_config || EMPTY_ARRAY,
-    selectDashboardChartIds,
-  ],
-  (allCustomizations, dashboardChartIds): ChartCustomizationConfiguration => {
-    const truthyCustomizations = allCustomizations.filter(Boolean);
-
-    const hasLegacyFormat = truthyCustomizations.some(item =>
-      isLegacyChartCustomizationFormat(item),
     );
-
-    const migratedCustomizations = hasLegacyFormat
-      ? migrateChartCustomizationArray(truthyCustomizations)
-      : (truthyCustomizations as ChartCustomizationConfiguration);
-
-    return migratedCustomizations.filter(customization => {
-      if (
-        !customization.chartsInScope ||
-        customization.chartsInScope.length === 0
-      ) {
-        return true;
-      }
-
-      return customization.chartsInScope.some((chartId: number) =>
-        dashboardChartIds.has(chartId),
-      );
-    });
-  },
-);
-
-export function useChartCustomizationConfiguration() {
-  return useSelector(selectChartCustomizationConfiguration);
+    return filterCustomizationsForDashboard(
+      allCustomizations,
+      dashboardChartIds,
+    );
+  }, [allCustomizations, dashboardLayout]);
 }
 
 export function useFilterConfigMap() {
@@ -168,9 +172,7 @@ export function useChartCustomizationConfigMap() {
 }
 
 export function useDashboardLayout() {
-  return useSelector<RootState, DashboardLayout>(
-    state => state.dashboardLayout?.present,
-  );
+  return useDashboardLayoutStore(s => s.layout);
 }
 
 export function useDashboardHasTabs() {
@@ -187,38 +189,33 @@ export function useDashboardHasTabs() {
 }
 
 function useActiveDashboardTabs(): ActiveTabs {
-  const reduxTabs = useSelector<RootState, ActiveTabs>(
-    state => state.dashboardState?.activeTabs,
-  );
+  const storeTabs = useDashboardStateStore(s => s.activeTabs);
   const dashboardLayout = useDashboardLayout();
 
   return useMemo(() => {
-    const reduxList = reduxTabs ?? [];
-    const reduxFallback = reduxList.length ? reduxList : EMPTY_ACTIVE_TABS;
-    if (!dashboardLayout) return reduxFallback;
+    const storeList = storeTabs ?? [];
+    const storeFallback = storeList.length ? storeList : EMPTY_ACTIVE_TABS;
+    if (!dashboardLayout) return storeFallback;
 
     // Tabbed dashboards always nest the top-level TABS container as the first
     // child of ROOT. If that invariant doesn't hold (no-tabs layout), no
-    // fallback applies and we use reduxTabs as-is.
+    // fallback applies and we use the stored active tabs as-is.
     const root = dashboardLayout[DASHBOARD_ROOT_ID];
-    if (!root?.children?.length) return reduxFallback;
+    if (!root?.children?.length) return storeFallback;
     const topContainer = dashboardLayout[root.children[0]];
     if (topContainer?.type !== TABS_TYPE || !topContainer.children?.length) {
-      return reduxFallback;
+      return storeFallback;
     }
 
-    // Walk every TABS container along the active path. For each container,
-    // pick the child Redux marked active; otherwise pick the first child (the
-    // default the live Tabs component would render). This handles:
-    //   - empty reduxTabs (hideTab:true, no permalink) → full default path
-    //   - reduxTabs missing an outer ancestor (hideTab:true skipped the
-    //     top-level Tabs, but a nested Tabs dispatched setActiveTab) → fill
-    //     in the missing ancestor so outer-tab scoping is preserved
-    //   - fully populated reduxTabs (normal hydration) → same result
-    const reduxSet = new Set(reduxList);
+    // Walk every TABS container along the active path, picking the child the
+    // store marks active, else the first child (the default the live Tabs
+    // renders). Handles empty activeTabs (hideTab/no permalink → default path),
+    // a missing outer ancestor (fill it in so outer-tab scoping holds), and
+    // fully populated activeTabs (same result).
+    const storeSet = new Set(storeList);
     const result: ActiveTabs = [];
     const queue: string[] = [
-      topContainer.children.find(c => reduxSet.has(c)) ??
+      topContainer.children.find(c => storeSet.has(c)) ??
         topContainer.children[0],
     ];
     while (queue.length > 0) {
@@ -230,19 +227,18 @@ function useActiveDashboardTabs(): ActiveTabs {
         const child = dashboardLayout[childId];
         if (child?.type !== TABS_TYPE || !child.children?.length) continue;
         queue.push(
-          child.children.find(c => reduxSet.has(c)) ?? child.children[0],
+          child.children.find(c => storeSet.has(c)) ?? child.children[0],
         );
       }
     }
 
-    // Preserve any reduxTabs entries that fell outside the traversed path so
-    // we never silently drop a redux-marked active tab id.
+    // Keep any stored active-tab ids that fell outside the traversed path.
     const resultSet = new Set(result);
-    for (const id of reduxList) {
+    for (const id of storeList) {
       if (!resultSet.has(id)) result.push(id);
     }
     return result;
-  }, [reduxTabs, dashboardLayout]);
+  }, [storeTabs, dashboardLayout]);
 }
 
 function useSelectChartTabParents() {

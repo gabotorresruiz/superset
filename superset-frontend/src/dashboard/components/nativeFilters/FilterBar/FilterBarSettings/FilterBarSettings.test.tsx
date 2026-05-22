@@ -22,6 +22,7 @@ import { waitFor, render, screen, within } from 'spec/helpers/testing-library';
 import userEvent from '@testing-library/user-event';
 import { DashboardInfo, FilterBarOrientation } from 'src/dashboard/types';
 import * as mockedMessageActions from 'src/components/MessageToasts/actions';
+import { useDashboardInfoStore } from 'src/dashboard/stores';
 import FilterBarSettings from '.';
 
 const initialState: { dashboardInfo: DashboardInfo } = {
@@ -57,19 +58,22 @@ const initialState: { dashboardInfo: DashboardInfo } = {
   },
 };
 
-const setup = (dashboardInfoOverride: Partial<DashboardInfo> = {}) =>
-  waitFor(() =>
+const setup = (dashboardInfoOverride: Partial<DashboardInfo> = {}) => {
+  const dashboardInfo: DashboardInfo = {
+    ...initialState.dashboardInfo,
+    ...dashboardInfoOverride,
+  };
+  useDashboardInfoStore.setState({ dashboardInfo });
+  return waitFor(() =>
     render(<FilterBarSettings />, {
       useRedux: true,
       initialState: {
         ...initialState,
-        dashboardInfo: {
-          ...initialState.dashboardInfo,
-          ...dashboardInfoOverride,
-        },
+        dashboardInfo,
       },
     }),
   );
+};
 
 beforeEach(() => {
   fetchMock.clearHistory().removeRoutes();

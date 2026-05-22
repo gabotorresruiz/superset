@@ -49,13 +49,14 @@ import {
   InPortal,
   OutPortal,
 } from 'react-reverse-portal';
-import { useSelector, useDispatch } from 'react-redux';
+import { useDispatch } from 'react-redux';
 import {
   useDashboardHasTabs,
   useSelectFiltersInScope,
   useSelectCustomizationsInScope,
 } from 'src/dashboard/components/nativeFilters/state';
-import { FilterBarOrientation, RootState } from 'src/dashboard/types';
+import { FilterBarOrientation } from 'src/dashboard/types';
+import { useDashboardInfoStore } from 'src/dashboard/stores';
 import {
   DropdownContainer,
   type DropdownRef as DropdownContainerRef,
@@ -65,7 +66,10 @@ import { Icons } from '@superset-ui/core/components/Icons';
 import { useChartIds } from 'src/dashboard/util/charts/useChartIds';
 import { useChartLayoutItems } from 'src/dashboard/util/useChartLayoutItems';
 import { setPendingChartCustomization } from 'src/dashboard/actions/chartCustomizationActions';
-import { getInitialDataMask } from 'src/dataMask/reducer';
+import {
+  getInitialDataMask,
+  useDataMaskStore,
+} from 'src/dataMask/useDataMaskStore';
 import { FiltersOutOfScopeCollapsible } from '../FiltersOutOfScopeCollapsible';
 import { CustomizationsOutOfScopeCollapsible } from '../CustomizationsOutOfScopeCollapsible';
 import { useFilterControlFactory } from '../useFilterControlFactory';
@@ -155,8 +159,8 @@ const FilterControls: FC<FilterControlsProps> = ({
 }) => {
   const theme = useTheme();
   const dispatch = useDispatch();
-  const filterBarOrientation = useSelector<RootState, FilterBarOrientation>(
-    ({ dashboardInfo }) => dashboardInfo.filterBarOrientation,
+  const filterBarOrientation = useDashboardInfoStore(
+    s => s.dashboardInfo.filterBarOrientation,
   );
 
   const { outlinedFilterId, lastUpdated } = useFilterOutlined();
@@ -164,9 +168,7 @@ const FilterControls: FC<FilterControlsProps> = ({
   const [overflowedIds, setOverflowedIds] = useState<string[]>([]);
   const popoverRef = useRef<DropdownContainerRef>(null);
 
-  const dataMask = useSelector<RootState, DataMaskStateWithId>(
-    state => state.dataMask,
-  );
+  const dataMask = useDataMaskStore(s => s.dataMask);
   const chartIds = useChartIds();
   const chartLayoutItems = useChartLayoutItems();
   const verboseMaps = useChartsVerboseMaps();

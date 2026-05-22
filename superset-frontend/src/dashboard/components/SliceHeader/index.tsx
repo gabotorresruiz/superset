@@ -37,11 +37,13 @@ import { useUiConfig } from 'src/components/UiConfigContext';
 import { isEmbedded } from 'src/dashboard/util/isEmbedded';
 import { Tooltip, EditableTitle, Icons } from '@superset-ui/core/components';
 import { useSelector } from 'react-redux';
+import { useDataMaskStore } from 'src/dataMask/useDataMaskStore';
 import SliceHeaderControls from 'src/dashboard/components/SliceHeaderControls';
 import { SliceHeaderControlsProps } from 'src/dashboard/components/SliceHeaderControls/types';
 import FiltersBadge from 'src/dashboard/components/FiltersBadge';
 import CustomizationsBadge from 'src/dashboard/components/CustomizationsBadge';
 import { RootState } from 'src/dashboard/types';
+import { useDashboardInfoStore } from 'src/dashboard/stores';
 import { getSliceHeaderTooltip } from 'src/dashboard/util/getSliceHeaderTooltip';
 import { DashboardPageIdContext } from 'src/dashboard/containers/DashboardPage';
 import RowCountLabel from 'src/components/RowCountLabel';
@@ -187,11 +189,11 @@ const SliceHeader = forwardRef<HTMLDivElement, SliceHeaderProps>(
     const [headerTooltip, setHeaderTooltip] = useState<ReactNode | null>(null);
     const headerRef = useRef<HTMLDivElement>(null);
     // TODO: change to indicator field after it will be implemented
-    const crossFilterValue = useSelector<RootState, any>(
-      state => state.dataMask[slice?.slice_id]?.filterState?.value,
+    const crossFilterValue = useDataMaskStore(
+      s => s.dataMask[slice?.slice_id]?.filterState?.value,
     );
-    const isCrossFiltersEnabled = useSelector<RootState, boolean>(
-      ({ dashboardInfo }) => dashboardInfo.crossFiltersEnabled,
+    const isCrossFiltersEnabled = useDashboardInfoStore(
+      s => s.dashboardInfo.crossFiltersEnabled,
     );
 
     const firstQueryResponse = useSelector<RootState, QueryData | undefined>(

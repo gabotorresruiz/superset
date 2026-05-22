@@ -22,6 +22,14 @@ import { Filter, NativeFilterType } from '@superset-ui/core';
 import { render, screen, userEvent } from 'spec/helpers/testing-library';
 import { DASHBOARD_ROOT_ID } from 'src/dashboard/util/constants';
 import { SET_DIRECT_PATH } from 'src/dashboard/actions/dashboardState';
+import {
+  useDashboardStateStore,
+  useDashboardLayoutStore,
+  useNativeFiltersStore,
+  useDashboardInfoStore,
+} from 'src/dashboard/stores';
+import type { DashboardInfo, DashboardLayout } from 'src/dashboard/types';
+import type { FilterEntry } from 'src/dashboard/stores/nativeFilters/useNativeFiltersStore';
 import { FilterCardContent } from './FilterCardContent';
 
 const baseInitialState = {
@@ -220,11 +228,40 @@ const getTextInHTMLTags =
 
 const hidePopover = jest.fn();
 
-const renderContent = (filter = baseFilter, initialState = baseInitialState) =>
-  render(<FilterCardContent filter={filter} hidePopover={hidePopover} />, {
-    useRedux: true,
-    initialState,
+type TestInitialState = {
+  dashboardInfo?: Record<string, unknown>;
+  dashboardLayout: { present: Record<string, unknown> };
+  dashboardState?: { sliceIds?: number[] };
+  nativeFilters?: { filters?: Record<string, unknown> };
+};
+
+const renderContent = (
+  filter = baseFilter,
+  initialState: TestInitialState = baseInitialState,
+) => {
+  useDashboardStateStore.setState({
+    sliceIds: initialState.dashboardState?.sliceIds ?? [],
   });
+  useDashboardLayoutStore.setState({
+    layout: initialState.dashboardLayout.present as DashboardLayout,
+  });
+  useNativeFiltersStore.setState({
+    filters: (initialState.nativeFilters?.filters ?? {}) as Record<
+      string,
+      FilterEntry
+    >,
+  });
+  useDashboardInfoStore.setState({
+    dashboardInfo: (initialState.dashboardInfo ?? {}) as DashboardInfo,
+  });
+  return render(
+    <FilterCardContent filter={filter} hidePopover={hidePopover} />,
+    {
+      useRedux: true,
+      initialState,
+    },
+  );
+};
 
 test('filter card title, type, scope, dependencies', () => {
   renderContent();

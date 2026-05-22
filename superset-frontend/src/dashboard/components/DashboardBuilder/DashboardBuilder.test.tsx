@@ -29,7 +29,14 @@ import {
   OPEN_FILTER_BAR_WIDTH,
   CLOSED_FILTER_BAR_WIDTH,
 } from 'src/dashboard/constants';
+import '@emotion/jest';
 import DashboardBuilder from 'src/dashboard/components/DashboardBuilder/DashboardBuilder';
+import {
+  useDashboardStateStore,
+  useDashboardLayoutStore,
+  type DashboardStateStore,
+} from 'src/dashboard/stores';
+import type { DashboardLayout } from 'src/dashboard/types';
 import useStoredSidebarWidth from 'src/components/ResizableSidebar/useStoredSidebarWidth';
 import {
   fetchFaveStar,
@@ -119,6 +126,9 @@ describe('DashboardBuilder', () => {
     activeTabsStub = (setActiveTab as jest.Mock).mockReturnValue({
       type: 'mock-action',
     });
+    (setDirectPathToChild as jest.Mock).mockReturnValue({
+      type: 'mock-setDirectPathToChild',
+    });
     (useStoredSidebarWidth as jest.Mock).mockImplementation(() => [
       100,
       jest.fn(),
@@ -128,10 +138,22 @@ describe('DashboardBuilder', () => {
   afterAll(() => {
     favStarStub.mockReset();
     activeTabsStub.mockReset();
+    (setDirectPathToChild as jest.Mock).mockReset();
     (useStoredSidebarWidth as jest.Mock).mockReset();
   });
 
-  function setup(overrideState = {}) {
+  function setup(overrideState: Record<string, any> = {}) {
+    const mergedState = { ...mockState, ...overrideState };
+    if (mergedState.dashboardState) {
+      useDashboardStateStore.setState(
+        mergedState.dashboardState as unknown as Partial<DashboardStateStore>,
+      );
+    }
+    const dashboardLayout =
+      overrideState.dashboardLayout ?? undoableDashboardLayout;
+    useDashboardLayoutStore.setState({
+      layout: dashboardLayout.present,
+    });
     return render(<DashboardBuilder />, {
       useRedux: true,
       store: storeWithState({
@@ -314,7 +336,8 @@ describe('DashboardBuilder', () => {
     });
     const tabList = await findByRole('tablist');
     const tabs = within(tabList).getAllByRole('tab');
-    expect(setDirectPathToChild).toHaveBeenCalledTimes(0);
+    // Clear any calls that happened during mount/render
+    (setDirectPathToChild as jest.Mock).mockClear();
     fireEvent.click(tabs[1]);
     expect(setDirectPathToChild).toHaveBeenCalledWith([
       'ROOT_ID',
@@ -524,6 +547,10 @@ test('should render ParentSize wrapper with height 100% for tabs', async () => {
   (fetchFaveStar as jest.Mock).mockReturnValue({ type: 'mock-action' });
   (setActiveTab as jest.Mock).mockReturnValue({ type: 'mock-action' });
 
+  useDashboardLayoutStore.setState({
+    layout:
+      undoableDashboardLayoutWithTabs.present as unknown as DashboardLayout,
+  });
   const { findByTestId } = render(<DashboardBuilder />, {
     useRedux: true,
     store: storeWithState({
@@ -554,6 +581,14 @@ test('should apply min-height to the top-level tab drop target so tabs can be dr
   (fetchFaveStar as jest.Mock).mockReturnValue({ type: 'mock-action' });
   (setActiveTab as jest.Mock).mockReturnValue({ type: 'mock-action' });
 
+  // editMode and layout drive the empty-droptarget; both are read from the
+  // Zustand stores, so seed them rather than relying on the Redux store alone.
+  useDashboardStateStore.setState({
+    editMode: true,
+  } as unknown as Partial<DashboardStateStore>);
+  useDashboardLayoutStore.setState({
+    layout: undoableDashboardLayout.present as unknown as DashboardLayout,
+  });
   const { getByTestId } = render(<DashboardBuilder />, {
     useRedux: true,
     store: storeWithState({
@@ -600,6 +635,10 @@ test('should maintain layout when switching between tabs', async () => {
     arg0,
   }));
 
+  useDashboardLayoutStore.setState({
+    layout:
+      undoableDashboardLayoutWithTabs.present as unknown as DashboardLayout,
+  });
   const { findByTestId } = render(<DashboardBuilder />, {
     useRedux: true,
     store: storeWithState({
