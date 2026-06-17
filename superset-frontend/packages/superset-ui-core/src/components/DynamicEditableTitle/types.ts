@@ -20,6 +20,10 @@ export type DynamicEditableTitleProps = {
   title: string;
   placeholder: string;
   onSave: (title: string) => void;
+  /** Fires per keystroke while editing; onSave commits on blur. */
+  onChange?: (title: string) => void;
+  /** Fires when editing starts (true) and ends/blurs (false). */
+  onEditingChange?: (isEditing: boolean) => void;
   canEdit: boolean;
   label: string | undefined;
 };

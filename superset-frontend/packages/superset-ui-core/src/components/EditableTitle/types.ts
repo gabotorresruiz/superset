@@ -23,6 +23,8 @@ export interface EditableTitleProps {
   extraClasses?: Array<string> | string;
   noPermitTooltip?: string;
   onSaveTitle: (arg0: string) => void;
+  /** Fires per keystroke while editing; onSaveTitle commits on blur. */
+  onChange?: (value: string) => void;
   showTooltip?: boolean;
   style?: object;
   title?: string;
