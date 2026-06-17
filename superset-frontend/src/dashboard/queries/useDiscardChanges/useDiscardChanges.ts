@@ -33,6 +33,7 @@ import {
   HYDRATE_DASHBOARD,
   type HydrationPayload,
 } from 'src/dashboard/actions/hydrate';
+import { applyDashboardLabelsColorOnLoad } from 'src/dashboard/actions/dashboardState';
 import type { RootState } from 'src/dashboard/types';
 import { dashboardKeys } from '../keys';
 
@@ -98,6 +99,10 @@ export function useDiscardChanges(dashboardId: number | string) {
         // Filter-bar open/closed is a view preference, not a dashboard edit:
         // preserve it so discard doesn't collapse an open bar.
         nativeFiltersBarOpen: live.nativeFiltersBarOpen,
+        // Focus/scroll target is session navigation; keep the live value so
+        // discard doesn't jump back to a chart focused at the last save.
+        directPathToChild: live.directPathToChild,
+        directPathLastUpdated: live.directPathLastUpdated,
         editMode: false,
         hasUnsavedChanges: false,
       });
@@ -130,6 +135,12 @@ export function useDiscardChanges(dashboardId: number | string) {
         cached.dataMask,
         false,
       );
+    // Re-apply the saved color scheme/labels to the global color singleton,
+    // which lives outside the stores; master rebuilt it on its reload, so an
+    // in-place discard must too or edited colors leak after discard.
+    if (cached.dashboardInfo?.metadata) {
+      dispatch(applyDashboardLabelsColorOnLoad(cached.dashboardInfo.metadata));
+    }
     useDashboardLayoutStore.temporal.getState().clear();
 
     return true;

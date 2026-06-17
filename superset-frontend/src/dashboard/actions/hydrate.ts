@@ -237,11 +237,11 @@ export const hydrateDashboard =
       isStarred: false,
       maxUndoHistoryExceeded: false,
       dashboardIsSaving: false,
-      // Seed the real last-modified timestamp (matches upstream): SaveModal
-      // sends it as last_modified_time for the backend stale-overwrite guard.
-      // (Cast mirrors upstream, which assigned changed_on into the number-typed
-      // field via a loosely-typed Redux seed.)
-      lastModifiedTime: dashboard.changed_on as unknown as number,
+      // Numeric epoch baseline for the stale-overwrite guard. The Header takes
+      // Math.max with dashboardInfo.last_modified_time (the real value) and
+      // markSaved updates this after each save, so 0 is the correct seed; a
+      // non-numeric seed (e.g. changed_on) makes that Math.max NaN.
+      lastModifiedTime: 0,
       lastRefreshTime: 0,
       overwriteConfirmMetadata: undefined,
       colorScheme: metadata?.color_scheme || undefined,
@@ -341,11 +341,11 @@ export const hydrateDashboard =
       );
 
     // Cache the payload so useDiscardChanges can re-seed state without a reload.
-    // The payload is never observed by a useQuery, so without an infinite
-    // gcTime it would be garbage-collected after the default 5min, silently
-    // degrading in-place discard to a full page reload. setQueryDefaults must
-    // run before setQueryData so the query picks up the gcTime at creation.
-    queryClient.setQueryDefaults(dashboardKeys.hydrationPayload(dashboard.id), {
+    // It is never observed by a useQuery, so gcTime: Infinity keeps it from being
+    // GC'd (which would degrade discard to a reload). The default is registered
+    // once on the shared prefix, not one per dashboard id; the payload itself is
+    // released on dashboard unmount. Must run before setQueryData to take effect.
+    queryClient.setQueryDefaults(dashboardKeys.hydrationPayloadAll, {
       gcTime: Infinity,
     });
     queryClient.setQueryData<HydrationPayload>(

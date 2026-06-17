@@ -331,8 +331,9 @@ test('should edit the title', () => {
   expect(screen.getByDisplayValue('New Title')).toBeInTheDocument();
 });
 
-test('typing in the title only dispatches once on commit, not per keystroke', () => {
+test('typing in the title enables Save immediately and commits once on blur', () => {
   setup(editableState);
+  useDashboardStateStore.setState({ hasUnsavedChanges: false });
   const editableTitle = screen.getByDisplayValue('Dashboard Title');
   // Title commits now route through the Zustand layout store.
   const titleSpy = jest.spyOn(
@@ -342,14 +343,15 @@ test('typing in the title only dispatches once on commit, not per keystroke', ()
   userEvent.click(editableTitle);
   userEvent.clear(editableTitle);
   userEvent.type(editableTitle, 'abcdef');
-  // No commit yet - typing should keep state local to DynamicEditableTitle
+  // Save enables as soon as the title diverges (unsaved flagged on the store),
+  // but the title isn't committed and no Redux action is dispatched per keystroke.
+  expect(useDashboardStateStore.getState().hasUnsavedChanges).toBe(true);
   expect(titleSpy).not.toHaveBeenCalled();
   expect(onChange).not.toHaveBeenCalled();
   // Commit by blurring
   userEvent.click(document.body);
   expect(titleSpy).toHaveBeenCalledTimes(1);
   expect(titleSpy).toHaveBeenCalledWith('abcdef');
-  expect(onChange).toHaveBeenCalledTimes(1);
   titleSpy.mockRestore();
 });
 

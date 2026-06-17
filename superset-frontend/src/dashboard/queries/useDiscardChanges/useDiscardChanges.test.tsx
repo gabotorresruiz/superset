@@ -36,6 +36,14 @@ import { useDiscardChanges } from './useDiscardChanges';
 // Jest hoists this above the imports, so the real module is loaded.
 jest.unmock('zustand');
 
+// The discard re-applies the saved color scheme to the global color singleton;
+// that path validates/normalizes the scheme and is exercised elsewhere. These
+// tests assert the store re-seed, so stub it to a no-op thunk.
+jest.mock('src/dashboard/actions/dashboardState', () => ({
+  ...jest.requireActual('src/dashboard/actions/dashboardState'),
+  applyDashboardLabelsColorOnLoad: () => () => undefined,
+}));
+
 const DASHBOARD_ID = 6;
 
 function setup(chartsState: Record<string, unknown> = {}) {

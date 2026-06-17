@@ -21,10 +21,13 @@ export const dashboardKeys = {
   all: ['dashboard'] as const,
   detail: (idOrSlug: string | number) =>
     [...dashboardKeys.all, 'detail', String(idOrSlug)] as const,
+  // Shared prefix for every dashboard's hydration payload, so the gcTime
+  // default can be set once instead of one entry per dashboard id.
+  hydrationPayloadAll: ['dashboard', 'hydration-payload'] as const,
   // Cached hydration payload from the initial HYDRATE_DASHBOARD dispatch.
   // Used by useDiscardChanges to re-seed dashboard state without a page reload.
   hydrationPayload: (idOrSlug: string | number) =>
-    [...dashboardKeys.all, 'hydration-payload', String(idOrSlug)] as const,
+    [...dashboardKeys.hydrationPayloadAll, String(idOrSlug)] as const,
 } as const;
 
 export interface SlicesListParams {

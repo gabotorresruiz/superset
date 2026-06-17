@@ -273,17 +273,22 @@ describe('dashboardState actions', () => {
       invalidateSpy.mockRestore();
     });
 
-    test('drops the discard snapshot on an in-place save', async () => {
-      // The snapshot predates the save (its charts/slices/seed are page-load
-      // state), so discard must fall back to a reload instead of reverting.
+    test('rebaselines the discard snapshot to the saved state on an in-place save', async () => {
+      // After a save the live stores hold the saved state, so the snapshot is
+      // rebaselined to it (not dropped) and a later discard stays in-place.
       const id = 192;
       const { getState, dispatch } = setup({
         dashboardState: { hasUnsavedChanges: true },
       });
       queryClient.setQueryData(dashboardKeys.hydrationPayload(id), {
         dashboardLayout: { present: { OLD: { id: 'OLD' } } },
+        sliceEntities: { slices: {} },
         zustandStateSeed: { hasUnsavedChanges: true },
       });
+      // The live (saved) layout the rebaseline should capture.
+      useDashboardLayoutStore.setState({
+        layout: { NEW: { id: 'NEW' } },
+      } as never);
 
       await saveDashboardRequest(
         newDashboardData,
@@ -291,9 +296,12 @@ describe('dashboardState actions', () => {
         SAVE_TYPE_OVERWRITE_CONFIRMED,
       )(dispatch, getState);
 
-      expect(
-        queryClient.getQueryData(dashboardKeys.hydrationPayload(id)),
-      ).toBeUndefined();
+      const snapshot = queryClient.getQueryData(
+        dashboardKeys.hydrationPayload(id),
+      ) as { dashboardLayout: { present: Record<string, unknown> } };
+      // Snapshot is rebaselined in place, not dropped, and reflects the saved layout.
+      expect(snapshot).toBeDefined();
+      expect(snapshot.dashboardLayout.present).toEqual({ NEW: { id: 'NEW' } });
     });
 
     test('should navigate to the new dashboard after Save As', async () => {
@@ -760,13 +768,16 @@ describe('dashboardState actions', () => {
       });
     });
 
-    test('drops the in-place discard snapshot so a later discard reloads', async () => {
+    test('rebaselines the discard snapshot on publish so a later discard stays in-place', async () => {
       const id = 123;
       const { getState, dispatch } = setup({
         dashboardInfo: { id, metadata: {} },
       });
       queryClient.setQueryData(dashboardKeys.hydrationPayload(id), {
         dashboardInfo: { id },
+        dashboardLayout: { present: {} },
+        sliceEntities: { slices: {} },
+        zustandStateSeed: { isPublished: false },
       });
       putStub.mockRestore();
       putStub = jest
@@ -775,9 +786,12 @@ describe('dashboardState actions', () => {
 
       await savePublished(id, true)(dispatch, getState);
 
-      expect(
-        queryClient.getQueryData(dashboardKeys.hydrationPayload(id)),
-      ).toBeUndefined();
+      const snapshot = queryClient.getQueryData(
+        dashboardKeys.hydrationPayload(id),
+      ) as { zustandStateSeed: { isPublished: boolean } };
+      // Rebaselined in place (not dropped); the persisted publish state survives discard.
+      expect(snapshot).toBeDefined();
+      expect(snapshot.zustandStateSeed.isPublished).toBe(true);
     });
 
     test('does NOT dispatch when the dashboard ID changed before the response resolved', async () => {

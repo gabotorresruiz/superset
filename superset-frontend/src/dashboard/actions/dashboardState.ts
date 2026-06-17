@@ -30,7 +30,7 @@ import {
 import { getCachedSlice } from 'src/dashboard/queries/useSlicesQuery/useSlicesQuery';
 import { queryClient } from 'src/queries/queryClient';
 import { dashboardKeys } from 'src/dashboard/queries/keys';
-import { dropHydrationSnapshot } from 'src/dashboard/util/rebaselineHydrationDashboardInfo';
+import { rebaselineHydrationSnapshot } from 'src/dashboard/util/rebaselineHydrationDashboardInfo';
 import rison from 'rison';
 import {
   ensureIsArray,
@@ -284,8 +284,9 @@ export function savePublished(
           );
           dispatch(togglePublished(isPublished));
           queryClient.invalidateQueries({ queryKey: dashboardKeys.detail(id) });
-          // The snapshot predates this persisted publish change; drop it so discard reloads.
-          dropHydrationSnapshot(id);
+          // Rebaseline the discard-snapshot so the persisted publish change
+          // survives a later in-place discard (published lives in the seed).
+          rebaselineHydrationSnapshot(id);
         }
       })
       .catch(() => {
@@ -643,9 +644,14 @@ export function saveDashboardRequest(
 
       dispatch(addSuccessToast(t('This dashboard was saved successfully.')));
       dispatch(setOverrideConfirm(undefined));
-      // The snapshot predates this save; drop it so a later discard reloads.
+      // Rebaseline the discard-snapshot to the just-saved state so a later
+      // discard stays in-place instead of reloading. Charts/dashboardFilters
+      // still live in Redux, so pass their current values for the chart set.
       queryClient.invalidateQueries({ queryKey: dashboardKeys.detail(id) });
-      dropHydrationSnapshot(id);
+      rebaselineHydrationSnapshot(id, {
+        charts: getState().charts,
+        dashboardFilters: getState().dashboardFilters,
+      });
       return response;
     };
 

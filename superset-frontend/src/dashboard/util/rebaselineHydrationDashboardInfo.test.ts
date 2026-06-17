@@ -17,10 +17,19 @@
  * under the License.
  */
 import { queryClient } from 'src/queries/queryClient';
-import { useDashboardInfoStore } from 'src/dashboard/stores';
+import {
+  useDashboardInfoStore,
+  useDashboardLayoutStore,
+  useDashboardSlicesStore,
+  useDashboardStateStore,
+} from 'src/dashboard/stores';
 import { dashboardKeys } from 'src/dashboard/queries/keys';
 import type { DashboardInfo } from 'src/dashboard/types';
-import { rebaselineHydrationDashboardInfo } from './rebaselineHydrationDashboardInfo';
+import type { HydrationPayload } from 'src/dashboard/actions/hydrate';
+import {
+  rebaselineHydrationDashboardInfo,
+  rebaselineHydrationSnapshot,
+} from './rebaselineHydrationDashboardInfo';
 
 const DASHBOARD_ID = 6;
 
@@ -59,6 +68,75 @@ test('is a no-op when no hydration payload is cached', () => {
 
   rebaselineHydrationDashboardInfo(DASHBOARD_ID);
 
+  expect(
+    queryClient.getQueryData(dashboardKeys.hydrationPayload(DASHBOARD_ID)),
+  ).toBeUndefined();
+});
+
+test('rebaselineHydrationSnapshot refreshes layout, seed, slices, info and the passed Redux state', () => {
+  queryClient.setQueryData<HydrationPayload>(
+    dashboardKeys.hydrationPayload(DASHBOARD_ID),
+    {
+      dashboardInfo: { dashboard_title: 'old' } as never,
+      dashboardLayout: {
+        present: { HEADER_ID: { meta: { text: 'old' } } } as never,
+      },
+      charts: {} as never,
+      sliceEntities: {
+        slices: {},
+        isLoading: false,
+        errorMessage: null,
+        lastUpdated: 0,
+      },
+      dataMask: {} as never,
+      dashboardFilters: {},
+      nativeFilters: { filters: {} },
+      // Only these seed keys get refreshed from the live state store.
+      zustandStateSeed: { isPublished: false, lastModifiedTime: 0 },
+    },
+  );
+  useDashboardLayoutStore.setState({
+    layout: { HEADER_ID: { meta: { text: 'saved title' } } } as never,
+  });
+  useDashboardStateStore.setState({
+    isPublished: true,
+    lastModifiedTime: 1234,
+  });
+  useDashboardSlicesStore.setState({ slices: { 7: { slice_id: 7 } } as never });
+  useDashboardInfoStore.setState({
+    dashboardInfo: {
+      dashboard_title: 'saved title',
+    } as unknown as DashboardInfo,
+  });
+
+  rebaselineHydrationSnapshot(DASHBOARD_ID, {
+    charts: { 7: { id: 7 } } as never,
+    dashboardFilters: { f: 1 },
+  });
+
+  const next = queryClient.getQueryData<HydrationPayload>(
+    dashboardKeys.hydrationPayload(DASHBOARD_ID),
+  )!;
+  // Rebaselined in place, never dropped.
+  expect(next).toBeDefined();
+  expect(next.dashboardLayout.present.HEADER_ID.meta.text).toBe('saved title');
+  // Seed keys are refreshed from the live state store, same shape as before.
+  expect(next.zustandStateSeed).toEqual({
+    isPublished: true,
+    lastModifiedTime: 1234,
+  });
+  expect(next.sliceEntities.slices).toEqual({ 7: { slice_id: 7 } });
+  expect(next.dashboardInfo).toEqual({ dashboard_title: 'saved title' });
+  // Redux-owned slices are taken from the caller.
+  expect(next.charts).toEqual({ 7: { id: 7 } });
+  expect(next.dashboardFilters).toEqual({ f: 1 });
+});
+
+test('rebaselineHydrationSnapshot is a no-op when no snapshot is cached', () => {
+  rebaselineHydrationSnapshot(DASHBOARD_ID, {
+    charts: {} as never,
+    dashboardFilters: {},
+  });
   expect(
     queryClient.getQueryData(dashboardKeys.hydrationPayload(DASHBOARD_ID)),
   ).toBeUndefined();

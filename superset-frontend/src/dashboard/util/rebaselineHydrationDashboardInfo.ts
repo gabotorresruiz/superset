@@ -17,7 +17,12 @@
  * under the License.
  */
 import { queryClient } from 'src/queries/queryClient';
-import { useDashboardInfoStore } from 'src/dashboard/stores';
+import {
+  useDashboardInfoStore,
+  useDashboardLayoutStore,
+  useDashboardSlicesStore,
+  useDashboardStateStore,
+} from 'src/dashboard/stores';
 import { dashboardKeys } from 'src/dashboard/queries/keys';
 import type { HydrationPayload } from 'src/dashboard/actions/hydrate';
 
@@ -32,6 +37,48 @@ export function rebaselineHydrationDashboardInfo(id: number) {
             dashboardInfo: useDashboardInfoStore.getState().dashboardInfo,
           }
         : old,
+  );
+}
+
+/**
+ * Refresh the cached discard-snapshot to the just-saved state so a later discard
+ * stays in-place instead of falling back to a full reload. Covers the saves that
+ * change layout (the header Save, publish): refreshes the layout, the Zustand
+ * state seed, the dashboard's slice metadata, and dashboardInfo. Charts and
+ * dashboardFilters live in Redux, so the caller passes their current values when
+ * the save can alter the chart set.
+ */
+export function rebaselineHydrationSnapshot(
+  id: number,
+  reduxState?: Pick<HydrationPayload, 'charts' | 'dashboardFilters'>,
+) {
+  queryClient.setQueryData<HydrationPayload>(
+    dashboardKeys.hydrationPayload(id),
+    old => {
+      if (!old) return old;
+      const live = useDashboardStateStore.getState() as unknown as Record<
+        string,
+        unknown
+      >;
+      const zustandStateSeed = Object.fromEntries(
+        Object.keys(old.zustandStateSeed ?? {}).map(key => [key, live[key]]),
+      );
+      return {
+        ...old,
+        ...reduxState,
+        dashboardInfo: useDashboardInfoStore.getState().dashboardInfo,
+        dashboardLayout: {
+          past: [],
+          present: useDashboardLayoutStore.getState().layout,
+          future: [],
+        },
+        sliceEntities: {
+          ...old.sliceEntities,
+          slices: useDashboardSlicesStore.getState().slices,
+        },
+        zustandStateSeed,
+      };
+    },
   );
 }
 

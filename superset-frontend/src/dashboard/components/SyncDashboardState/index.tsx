@@ -18,6 +18,7 @@
  */
 import { FC, useEffect } from 'react';
 
+import { useStore } from 'react-redux';
 import { debounce, pick, pickBy } from 'lodash';
 import { DashboardContextForExplore } from 'src/types/DashboardContextForExplore';
 import {
@@ -25,16 +26,21 @@ import {
   LocalStorageKeys,
   setItem,
 } from 'src/utils/localStorageHelpers';
-import { getActiveFilters } from 'src/dashboard/util/activeDashboardFilters';
+import {
+  buildActiveFilters,
+  getActiveFilters,
+} from 'src/dashboard/util/activeDashboardFilters';
 import { getAllActiveFilters } from 'src/dashboard/util/activeAllDashboardFilters';
 import { enforceSharedLabelsColorsArray } from 'src/utils/colorScheme';
 import {
   useDashboardStateStore,
   useNativeFiltersStore,
   useDashboardInfoStore,
+  useDashboardLayoutStore,
   type FilterEntry,
 } from 'src/dashboard/stores';
 import { useDataMaskStore } from 'src/dataMask/useDataMaskStore';
+import type { RootState } from 'src/dashboard/types';
 import {
   DataMaskStateWithId,
   Divider,
@@ -126,6 +132,8 @@ const readCurrentContext = (): DashboardContextForExplore =>
  * never re-renders. Subsequent writes are debounced to batch rapid state changes.
  */
 const SyncDashboardState: FC<Props> = ({ dashboardPageId }) => {
+  const reduxStore = useStore<RootState>();
+
   useEffect(() => {
     // Initial write is synchronous so consumers see the context immediately on mount.
     updateDashboardTabLocalStorage(dashboardPageId, readCurrentContext());
@@ -133,6 +141,21 @@ const SyncDashboardState: FC<Props> = ({ dashboardPageId }) => {
     const write = debounce(() => {
       updateDashboardTabLocalStorage(dashboardPageId, readCurrentContext());
     }, DEBOUNCE_MS);
+
+    // The legacy filter-box scope cache (getActiveFilters) is keyed off the
+    // layout. Master rebuilt it on every layout mutation; rebuild it here on any
+    // layout change so chartsInScope stays current, then re-sync the context.
+    const rebuildActiveFilters = () => {
+      buildActiveFilters({
+        dashboardFilters: reduxStore.getState().dashboardFilters as Parameters<
+          typeof buildActiveFilters
+        >[0]['dashboardFilters'],
+        components: useDashboardLayoutStore.getState().layout as Parameters<
+          typeof buildActiveFilters
+        >[0]['components'],
+      });
+      write();
+    };
 
     // One subscription per relevant store slice. Each fires only when its slice changes.
     const unsubs = [
@@ -142,6 +165,7 @@ const SyncDashboardState: FC<Props> = ({ dashboardPageId }) => {
       useDashboardStateStore.subscribe(s => s.sliceIds, write),
       useNativeFiltersStore.subscribe(s => s.filters, write),
       useDataMaskStore.subscribe(s => s.dataMask, write),
+      useDashboardLayoutStore.subscribe(s => s.layout, rebuildActiveFilters),
     ];
 
     return () => {
@@ -154,7 +178,7 @@ const SyncDashboardState: FC<Props> = ({ dashboardPageId }) => {
         isRedundant: true,
       });
     };
-  }, [dashboardPageId]);
+  }, [dashboardPageId, reduxStore]);
 
   return null;
 };

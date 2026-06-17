@@ -35,7 +35,7 @@ import {
 } from 'src/dashboard/stores';
 import { queryClient } from 'src/queries/queryClient';
 import { dashboardKeys } from 'src/dashboard/queries';
-import { dropHydrationSnapshot } from 'src/dashboard/util/rebaselineHydrationDashboardInfo';
+import { rebaselineHydrationDashboardInfo } from 'src/dashboard/util/rebaselineHydrationDashboardInfo';
 import { HYDRATE_DASHBOARD } from './hydrate';
 import {
   dashboardInfoChanged,
@@ -105,8 +105,9 @@ export const setFilterConfiguration =
       nativeFiltersConfigChanged(response.result);
       dispatch(setDataMaskForFilterChangesComplete(filterChanges, oldFilters));
       queryClient.invalidateQueries({ queryKey: dashboardKeys.detail(id) });
-      // The snapshot predates this persisted filter change; drop it so discard reloads.
-      dropHydrationSnapshot(id);
+      // Refresh only dashboardInfo (the new filter config); a filter-config save
+      // doesn't persist layout/state, so don't rebaseline those into the snapshot.
+      rebaselineHydrationDashboardInfo(id);
     } catch (err) {
       dispatch({
         type: SET_NATIVE_FILTERS_CONFIG_FAIL,

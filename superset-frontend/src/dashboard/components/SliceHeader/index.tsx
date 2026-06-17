@@ -20,6 +20,7 @@ import {
   forwardRef,
   ReactNode,
   RefObject,
+  useCallback,
   useContext,
   useEffect,
   useRef,
@@ -36,6 +37,10 @@ import {
 import { useUiConfig } from 'src/components/UiConfigContext';
 import { isEmbedded } from 'src/dashboard/util/isEmbedded';
 import { Tooltip, EditableTitle, Icons } from '@superset-ui/core/components';
+import {
+  flagTitleUnsavedChanges,
+  resetTitleDirtyFlag,
+} from 'src/dashboard/util/flagTitleUnsavedChanges';
 import { useSelector } from 'react-redux';
 import { useDataMaskStore } from 'src/dataMask/useDataMaskStore';
 import SliceHeaderControls from 'src/dashboard/components/SliceHeaderControls';
@@ -188,6 +193,17 @@ const SliceHeader = forwardRef<HTMLDivElement, SliceHeaderProps>(
     const dashboardPageId = useContext(DashboardPageIdContext);
     const [headerTooltip, setHeaderTooltip] = useState<ReactNode | null>(null);
     const headerRef = useRef<HTMLDivElement>(null);
+    const titleDirtyRef = useRef<boolean | undefined>(undefined);
+    const handleTitleChange = useCallback(
+      (value: string) =>
+        flagTitleUnsavedChanges(sliceName ?? '', value, titleDirtyRef),
+      [sliceName],
+    );
+    const handleTitleEditingChange = useCallback((isEditing: boolean) => {
+      if (!isEditing) {
+        resetTitleDirtyFlag(titleDirtyRef);
+      }
+    }, []);
     // TODO: change to indicator field after it will be implemented
     const crossFilterValue = useDataMaskStore(
       s => s.dataMask[slice?.slice_id]?.filterState?.value,
@@ -276,6 +292,8 @@ const SliceHeader = forwardRef<HTMLDivElement, SliceHeaderProps>(
                 }
                 canEdit={editMode}
                 onSaveTitle={updateSliceName}
+                onChange={handleTitleChange}
+                onEditingChange={handleTitleEditingChange}
                 showTooltip={false}
                 renderLink={
                   canExplore && exploreUrl ? renderExploreLink : undefined

@@ -87,6 +87,10 @@ import {
   useDashboardLayoutStore,
   useDashboardInfoStore,
 } from 'src/dashboard/stores';
+import {
+  flagTitleUnsavedChanges,
+  resetTitleDirtyFlag,
+} from 'src/dashboard/util/flagTitleUnsavedChanges';
 import { logEvent } from '../../../logger/actions';
 import { dashboardInfoChanged } from '../../actions/dashboardInfo';
 import { ChartState } from 'src/explore/types';
@@ -362,6 +366,20 @@ const Header = (): JSX.Element => {
     [boundActionCreators, dashboardTitle],
   );
 
+  // Enable Save as the title is typed; clear it again if reverted to the saved
+  // title (onSave commits on blur).
+  const titleDirtyRef = useRef<boolean | undefined>(undefined);
+  const handleChangeTitleText = useCallback(
+    (nextText: string) =>
+      flagTitleUnsavedChanges(dashboardTitle, nextText, titleDirtyRef),
+    [dashboardTitle],
+  );
+  const handleTitleEditingChange = useCallback((isEditing: boolean) => {
+    if (!isEditing) {
+      resetTitleDirtyFlag(titleDirtyRef);
+    }
+  }, []);
+
   const handleCtrlY = useCallback(() => {
     onRedo();
     setEmphasizeRedo(true);
@@ -613,11 +631,20 @@ const Header = (): JSX.Element => {
       title: dashboardTitle,
       canEdit: userCanEdit && editMode,
       onSave: handleChangeText,
+      onChange: handleChangeTitleText,
+      onEditingChange: handleTitleEditingChange,
       placeholder: t('Add the name of the dashboard'),
       label: t('Dashboard title'),
       showTooltip: false,
     }),
-    [dashboardTitle, editMode, handleChangeText, userCanEdit],
+    [
+      dashboardTitle,
+      editMode,
+      handleChangeText,
+      handleChangeTitleText,
+      handleTitleEditingChange,
+      userCanEdit,
+    ],
   );
 
   const certifiedBadgeProps = useMemo(
@@ -751,8 +778,8 @@ const Header = (): JSX.Element => {
                   onClick={overwriteDashboard}
                   data-test="header-save-button"
                   aria-label={t('Save')}
+                  icon={<Icons.SaveOutlined iconSize="m" />}
                 >
-                  <Icons.SaveOutlined iconSize="m" />
                   {t('Save')}
                 </Button>
               </div>

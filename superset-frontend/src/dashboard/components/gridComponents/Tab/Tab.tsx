@@ -31,6 +31,10 @@ import { styled } from '@apache-superset/core/theme';
 import { t } from '@apache-superset/core/translation';
 
 import { EditableTitle, EmptyState } from '@superset-ui/core/components';
+import {
+  flagTitleUnsavedChanges,
+  resetTitleDirtyFlag,
+} from 'src/dashboard/util/flagTitleUnsavedChanges';
 import { onRefresh } from 'src/dashboard/actions/dashboardState';
 import {
   useDashboardStateStore,
@@ -236,6 +240,26 @@ const Tab = (props: TabProps): ReactElement => {
     [props.updateComponents, props.component],
   );
 
+  const titleDirtyRef = useRef<boolean | undefined>(undefined);
+  const handleTitleChange = useCallback(
+    (value: string) =>
+      flagTitleUnsavedChanges(
+        props.component.meta.text ?? '',
+        value,
+        titleDirtyRef,
+      ),
+    [props.component.meta.text],
+  );
+  const handleTitleEditingChange = useCallback(
+    (isEditing: boolean) => {
+      props.onTabTitleEditingChange(isEditing);
+      if (!isEditing) {
+        resetTitleDirtyFlag(titleDirtyRef);
+      }
+    },
+    [props.onTabTitleEditingChange],
+  );
+
   const handleDrop = useCallback(
     (dropResult: DropResult) => {
       props.handleComponentDrop(dropResult);
@@ -435,7 +459,6 @@ const Tab = (props: TabProps): ReactElement => {
         isHighlighted,
         dashboardId,
         embeddedMode,
-        onTabTitleEditingChange,
       } = props;
       return (
         <TabTitleContainer
@@ -449,9 +472,10 @@ const Tab = (props: TabProps): ReactElement => {
             placeholder={component.meta.placeholder}
             canEdit={editMode}
             onSaveTitle={handleChangeText}
+            onChange={handleTitleChange}
             showTooltip={false}
             editing={editMode && isFocused}
-            onEditingChange={onTabTitleEditingChange}
+            onEditingChange={handleTitleEditingChange}
           />
           {!editMode && !embeddedMode && (
             <AnchorLink
@@ -477,8 +501,9 @@ const Tab = (props: TabProps): ReactElement => {
       props.isFocused,
       props.isHighlighted,
       props.dashboardId,
-      props.onTabTitleEditingChange,
       handleChangeText,
+      handleTitleChange,
+      handleTitleEditingChange,
     ],
   );
 

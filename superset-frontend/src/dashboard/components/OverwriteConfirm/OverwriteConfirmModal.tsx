@@ -112,13 +112,18 @@ const OverrideConfirmModal = ({ overwriteConfirmMetadata }: Props) => {
   );
   const onConfirmOverwrite = useCallback(() => {
     if (overwriteConfirmMetadata) {
-      dispatch(
-        saveDashboardRequest(
-          overwriteConfirmMetadata.data,
-          overwriteConfirmMetadata.dashboardId,
-          SAVE_TYPE_OVERWRITE_CONFIRMED,
+      // The thunk rejects on a failed PUT (so the Save mutation can see it), but
+      // this path dispatches it directly; onError already shows the toast, so
+      // swallow the rejection to avoid an unhandled promise rejection.
+      Promise.resolve(
+        dispatch(
+          saveDashboardRequest(
+            overwriteConfirmMetadata.data,
+            overwriteConfirmMetadata.dashboardId,
+            SAVE_TYPE_OVERWRITE_CONFIRMED,
+          ),
         ),
-      );
+      ).catch(() => {});
     }
   }, [dispatch, overwriteConfirmMetadata]);
 
