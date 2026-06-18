@@ -42,10 +42,7 @@ import {
   QueryFormData,
 } from '@superset-ui/core';
 import { useTheme } from '@apache-superset/core/theme';
-import {
-  useDashboardInfoStore,
-  selectCrossFiltersEnabled,
-} from 'src/dashboard/stores';
+import { useCrossFiltersEnabled, useDashboardId } from 'src/dashboard/stores';
 import { MenuItem } from '@superset-ui/core/components/Menu';
 import { usePermissions } from 'src/hooks/usePermissions';
 import { Dropdown } from '@superset-ui/core/components';
@@ -101,8 +98,8 @@ const ChartContextMenu = (
   const theme = useTheme();
   const { canDrillToDetail, canDrillBy, canDownload } = usePermissions();
 
-  const crossFiltersEnabled = useDashboardInfoStore(selectCrossFiltersEnabled);
-  const dashboardId = useDashboardInfoStore(s => s.dashboardInfo.id);
+  const crossFiltersEnabled = useCrossFiltersEnabled();
+  const dashboardId = useDashboardId();
 
   const [modalFilters, setFilters] = useState<BinaryQueryObjectFilterClause[]>(
     [],
