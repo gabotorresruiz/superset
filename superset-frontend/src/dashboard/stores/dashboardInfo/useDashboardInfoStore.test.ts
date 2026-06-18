@@ -124,18 +124,25 @@ test('setNativeFiltersConfig replaces the config, preserving prior scopes', () =
   expect(next).toMatchObject({ id: 'f1', chartsInScope: [3] });
 });
 
-test('setFilterBarOrientation updates only the orientation', () => {
+test('setFilterBarOrientation updates the field and syncs metadata', () => {
   store.getState().setDashboardInfo({ id: 1 });
   store.getState().setFilterBarOrientation(FilterBarOrientation.Horizontal);
   expect(getInfo().filterBarOrientation).toBe(FilterBarOrientation.Horizontal);
+  // metadata must stay in sync, else a later dashboard save (which spreads
+  // metadata into its PUT body) silently reverts the orientation.
+  expect(
+    (getInfo().metadata as Record<string, unknown>).filter_bar_orientation,
+  ).toBe(FilterBarOrientation.Horizontal);
   expect(getInfo().id).toBe(1);
 });
 
-test('setCrossFiltersEnabled toggles the flag', () => {
+test('setCrossFiltersEnabled toggles the flag and syncs metadata', () => {
   store.getState().setCrossFiltersEnabled(true);
   expect(getInfo().crossFiltersEnabled).toBe(true);
+  expect(getInfo().metadata?.cross_filters_enabled).toBe(true);
   store.getState().setCrossFiltersEnabled(false);
   expect(getInfo().crossFiltersEnabled).toBe(false);
+  expect(getInfo().metadata?.cross_filters_enabled).toBe(false);
 });
 
 test('hydrateDashboardInfo seeds the store and resets pending customizations', () => {

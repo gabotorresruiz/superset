@@ -236,12 +236,19 @@ export const useDashboardInfoStore = create<DashboardInfoStore>()(
           'dashboardInfo/hydrateDashboardInfo',
         ),
 
+      // Keep the dedicated field and metadata blob in sync: dashboard saves
+      // build their PUT body by spreading `metadata`, so a stale
+      // metadata.filter_bar_orientation would silently revert the saved value.
       setFilterBarOrientation: orientation =>
         set(
           state => ({
             dashboardInfo: {
               ...state.dashboardInfo,
               filterBarOrientation: orientation,
+              metadata: {
+                ...state.dashboardInfo.metadata,
+                filter_bar_orientation: orientation,
+              },
             },
           }),
           false,
@@ -251,7 +258,14 @@ export const useDashboardInfoStore = create<DashboardInfoStore>()(
       setCrossFiltersEnabled: crossFiltersEnabled =>
         set(
           state => ({
-            dashboardInfo: { ...state.dashboardInfo, crossFiltersEnabled },
+            dashboardInfo: {
+              ...state.dashboardInfo,
+              crossFiltersEnabled,
+              metadata: {
+                ...state.dashboardInfo.metadata,
+                cross_filters_enabled: crossFiltersEnabled,
+              },
+            },
           }),
           false,
           'dashboardInfo/setCrossFiltersEnabled',
