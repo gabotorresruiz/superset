@@ -108,16 +108,8 @@ export function removeSlice(sliceId: number): void {
   useDashboardStateStore.getState().removeSliceId(sliceId);
 }
 
-export const ON_SAVE = 'ON_SAVE';
-
-interface OnSaveAction {
-  type: typeof ON_SAVE;
-  lastModifiedTime: number;
-}
-
-export function onSave(lastModifiedTime: number): OnSaveAction {
+export function onSave(lastModifiedTime: number): void {
   useDashboardStateStore.getState().markSaved(lastModifiedTime);
-  return { type: ON_SAVE, lastModifiedTime };
 }
 
 export function saveDashboardRequestSuccess(lastModifiedTime: number): void {

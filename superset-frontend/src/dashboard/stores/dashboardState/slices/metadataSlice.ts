@@ -66,7 +66,7 @@ export interface MetadataSlice {
   clearAllChartStates: () => void;
   setRefreshFrequency: (frequency: number, isPersistent: boolean) => void;
   recordRefreshTime: () => void;
-  /** Resets the flags cleared by a successful save (ON_SAVE). */
+  /** Resets the flags cleared by a successful save. */
   markSaved: (lastModifiedTime: number) => void;
 }
 
