@@ -22,11 +22,9 @@ import { useQuery } from '@tanstack/react-query';
 import { JsonObject, SupersetClient } from '@superset-ui/core';
 import { t } from '@apache-superset/core/translation';
 import { useToasts } from 'src/components/MessageToasts/withToasts';
-import {
-  useDashboardStateStore,
-  useDashboardInfoStore,
-} from 'src/dashboard/stores';
+import { useDashboardStateStore } from 'src/dashboard/stores';
 import { dashboardKeys } from '../keys';
+import { isCurrentDashboard } from '../updateDashboardApi';
 
 async function fetchFavoriteStatus(id: number): Promise<boolean> {
   const { json } = await SupersetClient.get({
@@ -45,13 +43,16 @@ export function useFavoriteStatus(id: number, enabled = true) {
     queryKey: dashboardKeys.favoriteStatus(id),
     queryFn: () => fetchFavoriteStatus(id),
     enabled,
+    // Favorite status only changes via this user's own toggle (which writes the
+    // cache directly), so avoid refetching on every Header remount / refocus.
+    staleTime: 5 * 60 * 1000,
   });
 
   useEffect(() => {
     if (query.data === undefined) return;
     // Only update state if this is still the current dashboard. This prevents
     // stale responses from affecting the UI after navigation.
-    if (useDashboardInfoStore.getState().dashboardInfo?.id !== id) return;
+    if (!isCurrentDashboard(id)) return;
     useDashboardStateStore.getState().setIsStarred(query.data);
   }, [id, query.data]);
 
@@ -60,7 +61,7 @@ export function useFavoriteStatus(id: number, enabled = true) {
     // Only show error if this is still the current dashboard. This prevents
     // error toasts from appearing for dashboards the user has already navigated
     // away from (e.g., deleted dashboards).
-    if (useDashboardInfoStore.getState().dashboardInfo?.id !== id) return;
+    if (!isCurrentDashboard(id)) return;
     addDangerToast(
       t('There was an issue fetching the favorite status of this dashboard.'),
     );

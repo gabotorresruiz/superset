@@ -20,10 +20,10 @@ import { useMutation } from '@tanstack/react-query';
 import { SupersetClient } from '@superset-ui/core';
 import { t } from '@apache-superset/core/translation';
 import { useToasts } from 'src/components/MessageToasts/withToasts';
-import {
-  useDashboardStateStore,
-  useDashboardInfoStore,
-} from 'src/dashboard/stores';
+import { useDashboardStateStore } from 'src/dashboard/stores';
+import { queryClient } from 'src/queries/queryClient';
+import { dashboardKeys } from '../keys';
+import { isCurrentDashboard } from '../updateDashboardApi';
 
 /** Favorites / unfavorites a dashboard for the current user. */
 export function useToggleFavorite(id: number) {
@@ -38,12 +38,16 @@ export function useToggleFavorite(id: number) {
     },
     onSuccess: isStarred => {
       // Only update state if this is still the current dashboard.
-      if (useDashboardInfoStore.getState().dashboardInfo?.id !== id) return;
-      useDashboardStateStore.getState().setIsStarred(!isStarred);
+      if (!isCurrentDashboard(id)) return;
+      const nowStarred = !isStarred;
+      useDashboardStateStore.getState().setIsStarred(nowStarred);
+      // Keep the favorite-status query cache in sync, else a Header remount
+      // mirrors the stale cached value back into the store.
+      queryClient.setQueryData(dashboardKeys.favoriteStatus(id), nowStarred);
     },
     onError: () => {
       // Only show error if this is still the current dashboard.
-      if (useDashboardInfoStore.getState().dashboardInfo?.id !== id) return;
+      if (!isCurrentDashboard(id)) return;
       addDangerToast(t('There was an issue favoriting this dashboard.'));
     },
   });

@@ -26,6 +26,7 @@ import {
 } from 'src/dashboard/stores';
 import type { DashboardInfo } from 'src/dashboard/types';
 import { queryClient } from 'src/queries/queryClient';
+import { dashboardKeys } from '../keys';
 import { useToggleFavorite } from './useToggleFavorite';
 
 jest.unmock('zustand');
@@ -86,6 +87,27 @@ test('clears starred when the dashboard ID still matches (unstarring)', async ()
   );
   expect(del).toHaveBeenCalledTimes(1);
   del.mockRestore();
+});
+
+test('syncs the favorite-status query cache with the new value on success', async () => {
+  const id = 123;
+  setCurrentDashboard(id);
+  // Cache holds the pre-toggle value; the mutation must overwrite it so a
+  // later Header remount does not mirror this stale value back into the store.
+  queryClient.setQueryData(dashboardKeys.favoriteStatus(id), false);
+  const post = jest
+    .spyOn(SupersetClient, 'post')
+    .mockResolvedValue({} as never);
+
+  const { result } = renderHook(() => useToggleFavorite(id), { wrapper });
+  result.current.mutate(false);
+
+  await waitFor(() =>
+    expect(queryClient.getQueryData(dashboardKeys.favoriteStatus(id))).toBe(
+      true,
+    ),
+  );
+  post.mockRestore();
 });
 
 test('does NOT update starred when the dashboard ID changed before the response resolved', async () => {
