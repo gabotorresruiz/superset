@@ -108,7 +108,20 @@ export const useNativeFiltersStore = create<NativeFiltersStore>()(
 
       setFiltersConfigComplete: filterChanges =>
         set(
-          { filters: mergeFilterChanges(get().filters, filterChanges) },
+          state => {
+            const filters = mergeFilterChanges(state.filters, filterChanges);
+            // Drop a focus/hover id pointing at a filter this change removed,
+            // so consumers never resolve a stale id to a missing filter.
+            return {
+              filters,
+              ...(state.focusedFilterId && !filters[state.focusedFilterId]
+                ? { focusedFilterId: undefined }
+                : null),
+              ...(state.hoveredFilterId && !filters[state.hoveredFilterId]
+                ? { hoveredFilterId: undefined }
+                : null),
+            };
+          },
           false,
           'nativeFilters/setFiltersConfigComplete',
         ),

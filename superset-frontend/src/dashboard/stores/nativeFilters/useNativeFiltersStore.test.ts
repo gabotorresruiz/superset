@@ -100,6 +100,30 @@ test('setFiltersConfigComplete preserves scope from the existing filter when abs
   expect(merged.tabsInScope).toEqual(['T9']);
 });
 
+test('setFiltersConfigComplete clears a focus/hover id whose filter was removed', () => {
+  store.setState({
+    filters: { A: filter('A') },
+    focusedFilterId: 'A',
+    hoveredFilterId: 'A',
+  });
+  // The authoritative config no longer contains filter A.
+  store.getState().setFiltersConfigComplete([filter('B')]);
+  expect(Object.keys(store.getState().filters)).toEqual(['B']);
+  expect(store.getState().focusedFilterId).toBeUndefined();
+  expect(store.getState().hoveredFilterId).toBeUndefined();
+});
+
+test('setFiltersConfigComplete keeps a focus/hover id whose filter still exists', () => {
+  store.setState({
+    filters: { A: filter('A') },
+    focusedFilterId: 'A',
+    hoveredFilterId: 'A',
+  });
+  store.getState().setFiltersConfigComplete([filter('A'), filter('B')]);
+  expect(store.getState().focusedFilterId).toBe('A');
+  expect(store.getState().hoveredFilterId).toBe('A');
+});
+
 test('setInScopeStatus merges scoped filters into existing state', () => {
   store.setState({ filters: { A: filter('A'), B: filter('B') } });
   store
