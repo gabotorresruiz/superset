@@ -62,8 +62,17 @@ import {
   useDashboardStateStore,
   useDashboardSlicesStore,
   useNativeFiltersStore,
-  useDashboardInfoStore,
-  selectCrossFiltersEnabled,
+  useCrossFiltersEnabled,
+  useDashboardInfo,
+  useDashboardConf,
+  useCanExplore,
+  useCanShare,
+  useCanCsv,
+  useShowChartTimestamps,
+  useChartConfiguration,
+  useLabelsColor,
+  useLabelsColorMap,
+  useSharedLabelsColors,
 } from 'src/dashboard/stores';
 import { useDataMaskStore } from 'src/dataMask/useDataMaskStore';
 
@@ -205,38 +214,24 @@ const Chart = (props: ChartProps) => {
   const isExpanded = useDashboardStateStore(
     s => !!s.expandedSlices?.[props.id],
   );
-  const supersetCanExplore = useDashboardInfoStore(
-    s => !!(s.dashboardInfo as JsonObject).superset_can_explore,
-  );
-  const supersetCanShare = useDashboardInfoStore(
-    s => !!(s.dashboardInfo as JsonObject).superset_can_share,
-  );
-  const supersetCanCSV = useDashboardInfoStore(
-    s => !!(s.dashboardInfo as JsonObject).superset_can_csv,
-  );
-  const timeout: number = useDashboardInfoStore(
-    s => s.dashboardInfo.common.conf.SUPERSET_WEBSERVER_TIMEOUT as number,
-  );
-  const emitCrossFilters = useDashboardInfoStore(selectCrossFiltersEnabled);
-  const maxRows: number = useDashboardInfoStore(
-    s => s.dashboardInfo.common.conf.SQL_MAX_ROW as number,
-  );
-  const streamingThreshold: number = useDashboardInfoStore(
-    s =>
-      (s.dashboardInfo.common.conf.CSV_STREAMING_ROW_THRESHOLD as number) ||
-      DEFAULT_CSV_STREAMING_ROW_THRESHOLD,
-  );
+  const supersetCanExplore = useCanExplore();
+  const supersetCanShare = useCanShare();
+  const supersetCanCSV = useCanCsv();
+  const conf = useDashboardConf();
+  const timeout: number = conf.SUPERSET_WEBSERVER_TIMEOUT as number;
+  const emitCrossFilters = useCrossFiltersEnabled();
+  const maxRows: number = conf.SQL_MAX_ROW as number;
+  const streamingThreshold: number =
+    (conf.CSV_STREAMING_ROW_THRESHOLD as number) ||
+    DEFAULT_CSV_STREAMING_ROW_THRESHOLD;
   const datasource: Datasource = useSelector(
     (state: RootState) =>
       (chart?.form_data?.datasource &&
         state.datasources[chart.form_data.datasource]) ||
       PLACEHOLDER_DATASOURCE,
   );
-  const dashboardInfo = useDashboardInfoStore(s => s.dashboardInfo);
-  const showChartTimestamps: boolean = useDashboardInfoStore(
-    s =>
-      (s.dashboardInfo?.metadata as JsonObject)?.show_chart_timestamps ?? false,
-  );
+  const dashboardInfo = useDashboardInfo();
+  const showChartTimestamps: boolean = useShowChartTimestamps();
   const suppressLoadingSpinner = useIsAutoRefreshing();
 
   const isCached: boolean[] = useMemo(
@@ -386,9 +381,7 @@ const Chart = (props: ChartProps) => {
     });
   }, [boundActionCreators.logEvent, sliceSliceId, isCached]);
 
-  const chartConfiguration = useDashboardInfoStore(
-    s => s.dashboardInfo.metadata?.chart_configuration,
-  );
+  const chartConfiguration = useChartConfiguration();
   const chartCustomizationItems = useChartCustomizations();
   const colorScheme = useDashboardStateStore(s => s.colorScheme);
   const colorNamespace = useDashboardStateStore(s => s.colorNamespace);
@@ -398,15 +391,9 @@ const Chart = (props: ChartProps) => {
   const dataMask = useDataMaskStore(s => s.dataMask);
   const dataMaskOwnState = dataMask[props.id]?.ownState;
   const chartState = useDashboardStateStore(s => s.chartStates[props.id]);
-  const labelsColor: JsonObject = useDashboardInfoStore(
-    s => s.dashboardInfo?.metadata?.label_colors || EMPTY_OBJECT,
-  );
-  const labelsColorMap: JsonObject = useDashboardInfoStore(
-    s => s.dashboardInfo?.metadata?.map_label_colors || EMPTY_OBJECT,
-  );
-  const rawSharedLabelsColors = useDashboardInfoStore(
-    s => s.dashboardInfo?.metadata?.shared_label_colors,
-  );
+  const labelsColor: JsonObject = useLabelsColor();
+  const labelsColorMap: JsonObject = useLabelsColorMap();
+  const rawSharedLabelsColors = useSharedLabelsColors();
   const sharedLabelsColors = useMemo(
     () => enforceSharedLabelsColorsArray(rawSharedLabelsColors),
     [rawSharedLabelsColors],

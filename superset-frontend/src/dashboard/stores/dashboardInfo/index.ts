@@ -22,12 +22,7 @@ export {
   selectFilterBarOrientation,
   selectCrossFiltersEnabled,
 } from './useDashboardInfoStore';
-export {
-  useFilterBarOrientation,
-  useCrossFiltersEnabled,
-  useDashboardId,
-  useCanEditDashboard,
-} from './hooks';
+export * from './hooks';
 export type {
   DashboardInfoStore,
   DashboardInfoData,

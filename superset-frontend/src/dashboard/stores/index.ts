@@ -35,11 +35,8 @@ export {
   useDashboardInfoStore,
   selectFilterBarOrientation,
   selectCrossFiltersEnabled,
-  useFilterBarOrientation,
-  useCrossFiltersEnabled,
-  useDashboardId,
-  useCanEditDashboard,
 } from './dashboardInfo';
+export * from './dashboardInfo/hooks';
 export type { DashboardInfoStore, DashboardInfoData } from './dashboardInfo';
 
 export {
