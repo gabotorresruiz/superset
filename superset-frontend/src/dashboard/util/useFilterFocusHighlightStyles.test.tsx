@@ -143,3 +143,20 @@ test('should return focused styles if chart is in scope of hovered native filter
   const styles = getComputedStyle(container);
   expect(parseFloat(styles.opacity)).toBe(1);
 });
+
+test('does not crash when the focused filter id is stale (filter missing)', () => {
+  // A focused filter can be deleted while its id is still focused; the filter
+  // entry is gone from the store. The hook must skip related-chart computation
+  // rather than dereferencing the missing filter (regression: TypeError on
+  // reading 'scope' of undefined, crashing the whole dashboard tree).
+  mockGetRelatedCharts.mockClear();
+  seedNativeFilters({
+    focusedFilterId: 'deleted-filter',
+    filters: {},
+  });
+  renderWrapper(10);
+
+  const container = screen.getByTestId('test-component');
+  expect(parseFloat(getComputedStyle(container).opacity)).toBe(0.3);
+  expect(mockGetRelatedCharts).not.toHaveBeenCalled();
+});

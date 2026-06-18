@@ -65,14 +65,20 @@ const useFilterFocusHighlightStyles = (chartId: number) => {
   }
 
   if (highlightedFilterId) {
-    const relatedCharts = getRelatedCharts(
-      highlightedFilterId,
-      filters[highlightedFilterId] as Filter,
-      slices,
-    );
+    // A focused/hovered filter id can briefly outlive its filter (e.g. the
+    // filter was just deleted or edited), leaving filters[id] undefined.
+    // Skip the highlight in that window rather than dereferencing undefined.
+    const highlightedFilter = filters[highlightedFilterId];
+    if (highlightedFilter) {
+      const relatedCharts = getRelatedCharts(
+        highlightedFilterId,
+        highlightedFilter as Filter,
+        slices,
+      );
 
-    if (relatedCharts.includes(chartId)) {
-      return focusedChartStyles;
+      if (relatedCharts.includes(chartId)) {
+        return focusedChartStyles;
+      }
     }
   }
 
