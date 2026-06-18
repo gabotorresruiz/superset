@@ -35,6 +35,10 @@ export {
   useDashboardInfoStore,
   selectFilterBarOrientation,
   selectCrossFiltersEnabled,
+  useFilterBarOrientation,
+  useCrossFiltersEnabled,
+  useDashboardId,
+  useCanEditDashboard,
 } from './dashboardInfo';
 export type { DashboardInfoStore, DashboardInfoData } from './dashboardInfo';
 
