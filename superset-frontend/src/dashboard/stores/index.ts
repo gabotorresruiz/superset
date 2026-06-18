@@ -31,7 +31,11 @@ export {
 export { useDashboardSlicesStore } from './dashboardSlices';
 export type { DashboardSlicesStore } from './dashboardSlices';
 
-export { useDashboardInfoStore } from './dashboardInfo';
+export {
+  useDashboardInfoStore,
+  selectFilterBarOrientation,
+  selectCrossFiltersEnabled,
+} from './dashboardInfo';
 export type { DashboardInfoStore, DashboardInfoData } from './dashboardInfo';
 
 export {

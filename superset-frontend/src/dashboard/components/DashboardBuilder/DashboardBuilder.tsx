@@ -54,6 +54,7 @@ import {
   useDashboardStateStore,
   useDashboardLayoutStore,
   useDashboardInfoStore,
+  selectFilterBarOrientation,
   useHandleComponentDrop,
 } from 'src/dashboard/stores';
 import { useUiConfig } from 'src/components/UiConfigContext';
@@ -371,7 +372,7 @@ const DashboardBuilder = () => {
   const canEdit = useDashboardInfoStore(s => s.dashboardInfo.dash_edit_perm);
   const dashboardIsSaving = useDashboardStateStore(s => s.dashboardIsSaving);
   const filterBarOrientation = useDashboardInfoStore(
-    s => s.dashboardInfo.filterBarOrientation,
+    selectFilterBarOrientation,
   );
 
   const handleChangeTab = useCallback(

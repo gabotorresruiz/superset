@@ -31,6 +31,7 @@ import {
 import {
   useDashboardLayoutStore,
   useDashboardInfoStore,
+  selectCrossFiltersEnabled,
 } from 'src/dashboard/stores';
 import { CHART_TYPE } from 'src/dashboard/util/componentTypes';
 import type { SelectOptionsType } from '@superset-ui/core/components';
@@ -141,7 +142,7 @@ export const ScopingTreePanel = ({
 }: ScopingTreePanelProps) => {
   const theme = useTheme();
   const isCrossFiltersEnabled = useDashboardInfoStore(
-    s => s.dashboardInfo.crossFiltersEnabled,
+    selectCrossFiltersEnabled,
   );
   return (
     <div

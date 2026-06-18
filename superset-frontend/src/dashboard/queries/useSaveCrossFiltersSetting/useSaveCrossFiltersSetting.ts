@@ -17,43 +17,33 @@
  * under the License.
  */
 import { useMutation } from '@tanstack/react-query';
-import { makeApi } from '@superset-ui/core';
 import { t } from '@apache-superset/core/translation';
 import { useToasts } from 'src/components/MessageToasts/withToasts';
-import { DashboardInfo } from 'src/dashboard/types';
-import { useDashboardInfoStore } from 'src/dashboard/stores';
-import { rebaselineHydrationDashboardInfo } from 'src/dashboard/util/rebaselineHydrationDashboardInfo';
-import { queryClient } from 'src/queries/queryClient';
-import { onSave } from 'src/dashboard/actions/dashboardState';
-import { dashboardKeys } from '../keys';
-
-const createUpdateDashboardApi = (id: number) =>
-  makeApi<
-    Partial<DashboardInfo>,
-    { result: Partial<DashboardInfo>; last_modified_time: number }
-  >({
-    method: 'PUT',
-    endpoint: `/api/v1/dashboard/${id}`,
-  });
+import {
+  useDashboardInfoStore,
+  selectCrossFiltersEnabled,
+} from 'src/dashboard/stores';
+import {
+  applyMetadataSaveResult,
+  createUpdateDashboardApi,
+} from '../updateDashboardApi';
 
 /** Persists the dashboard's cross-filtering enabled setting. */
 export function useSaveCrossFiltersSetting() {
   const { addDangerToast } = useToasts();
   return useMutation({
     mutationFn: async (crossFiltersEnabled: boolean) => {
-      const {
-        id,
-        metadata,
-        crossFiltersEnabled: previousCrossFiltersEnabled,
-      } = useDashboardInfoStore.getState().dashboardInfo;
+      const { id, metadata } = useDashboardInfoStore.getState().dashboardInfo;
+      const previousCrossFiltersEnabled = selectCrossFiltersEnabled(
+        useDashboardInfoStore.getState(),
+      );
 
       // Optimistic update; reverted in onError.
       useDashboardInfoStore
         .getState()
         .setCrossFiltersEnabled(crossFiltersEnabled);
-      const updateDashboard = createUpdateDashboardApi(id);
       try {
-        const response = await updateDashboard({
+        const response = await createUpdateDashboardApi(id)({
           json_metadata: JSON.stringify({
             ...metadata,
             cross_filters_enabled: crossFiltersEnabled,
@@ -68,25 +58,7 @@ export function useSaveCrossFiltersSetting() {
       }
     },
     onSuccess: ({ id, response }) => {
-      const updatedDashboard = response.result;
-      const lastModifiedTime = response.last_modified_time;
-
-      if (updatedDashboard.json_metadata) {
-        const metadata = JSON.parse(updatedDashboard.json_metadata);
-        useDashboardInfoStore
-          .getState()
-          .setCrossFiltersEnabled(metadata.cross_filters_enabled);
-      }
-
-      if (lastModifiedTime) {
-        onSave(lastModifiedTime);
-      }
-
-      useDashboardInfoStore.getState().setDashboardInfo({
-        metadata: JSON.parse(response.result.json_metadata || '{}'),
-      });
-      rebaselineHydrationDashboardInfo(id);
-      queryClient.invalidateQueries({ queryKey: dashboardKeys.detail(id) });
+      applyMetadataSaveResult(id, response, { markSaved: true });
     },
     onError: () => {
       addDangerToast(t('Failed to save cross-filters setting'));

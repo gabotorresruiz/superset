@@ -54,15 +54,13 @@ const initialState: { dashboardInfo: DashboardInfo } = {
       label_colors: {},
       shared_label_colors: [],
       map_label_colors: {},
-      cross_filters_enabled: false,
+      cross_filters_enabled: true,
     },
     json_metadata: '',
     dash_edit_perm: true,
-    filterBarOrientation: FilterBarOrientation.Vertical,
     common: {
       conf: {},
     },
-    crossFiltersEnabled: true,
     created_on_delta_humanized: '',
     changed_on_delta_humanized: '',
     owners: [],
@@ -164,7 +162,12 @@ test('Popover opens with "Vertical" selected', async () => {
 });
 
 test('Popover opens with "Horizontal" selected', async () => {
-  await setup({ filterBarOrientation: FilterBarOrientation.Horizontal });
+  await setup({
+    metadata: {
+      ...initialState.dashboardInfo.metadata,
+      filter_bar_orientation: FilterBarOrientation.Horizontal,
+    },
+  });
   const settingsButton = screen.getByRole('button', {
     name: 'setting',
   });

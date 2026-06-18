@@ -48,7 +48,10 @@ import { SliceHeaderControlsProps } from 'src/dashboard/components/SliceHeaderCo
 import FiltersBadge from 'src/dashboard/components/FiltersBadge';
 import CustomizationsBadge from 'src/dashboard/components/CustomizationsBadge';
 import { RootState } from 'src/dashboard/types';
-import { useDashboardInfoStore } from 'src/dashboard/stores';
+import {
+  useDashboardInfoStore,
+  selectCrossFiltersEnabled,
+} from 'src/dashboard/stores';
 import { getSliceHeaderTooltip } from 'src/dashboard/util/getSliceHeaderTooltip';
 import { DashboardPageIdContext } from 'src/dashboard/containers/DashboardPage';
 import RowCountLabel from 'src/components/RowCountLabel';
@@ -209,7 +212,7 @@ const SliceHeader = forwardRef<HTMLDivElement, SliceHeaderProps>(
       s => s.dataMask[slice?.slice_id]?.filterState?.value,
     );
     const isCrossFiltersEnabled = useDashboardInfoStore(
-      s => s.dashboardInfo.crossFiltersEnabled,
+      selectCrossFiltersEnabled,
     );
 
     const firstQueryResponse = useSelector<RootState, QueryData | undefined>(

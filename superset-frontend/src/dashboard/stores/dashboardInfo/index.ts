@@ -17,7 +17,11 @@
  * under the License.
  */
 
-export { useDashboardInfoStore } from './useDashboardInfoStore';
+export {
+  useDashboardInfoStore,
+  selectFilterBarOrientation,
+  selectCrossFiltersEnabled,
+} from './useDashboardInfoStore';
 export type {
   DashboardInfoStore,
   DashboardInfoData,

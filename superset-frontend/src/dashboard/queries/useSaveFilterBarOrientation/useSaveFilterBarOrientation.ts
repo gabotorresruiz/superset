@@ -17,24 +17,15 @@
  * under the License.
  */
 import { useMutation } from '@tanstack/react-query';
-import { makeApi, getClientErrorObject } from '@superset-ui/core';
+import { getClientErrorObject } from '@superset-ui/core';
 import { t } from '@apache-superset/core/translation';
 import { useToasts } from 'src/components/MessageToasts/withToasts';
-import { DashboardInfo, FilterBarOrientation } from 'src/dashboard/types';
+import { FilterBarOrientation } from 'src/dashboard/types';
 import { useDashboardInfoStore } from 'src/dashboard/stores';
-import { rebaselineHydrationDashboardInfo } from 'src/dashboard/util/rebaselineHydrationDashboardInfo';
-import { queryClient } from 'src/queries/queryClient';
-import { onSave } from 'src/dashboard/actions/dashboardState';
-import { dashboardKeys } from '../keys';
-
-const createUpdateDashboardApi = (id: number) =>
-  makeApi<
-    Partial<DashboardInfo>,
-    { result: Partial<DashboardInfo>; last_modified_time: number }
-  >({
-    method: 'PUT',
-    endpoint: `/api/v1/dashboard/${id}`,
-  });
+import {
+  applyMetadataSaveResult,
+  createUpdateDashboardApi,
+} from '../updateDashboardApi';
 
 /** Persists the filter bar orientation (vertical / horizontal). */
 export function useSaveFilterBarOrientation() {
@@ -42,8 +33,7 @@ export function useSaveFilterBarOrientation() {
   return useMutation({
     mutationFn: async (orientation: FilterBarOrientation) => {
       const { id, metadata } = useDashboardInfoStore.getState().dashboardInfo;
-      const updateDashboard = createUpdateDashboardApi(id);
-      const response = await updateDashboard({
+      const response = await createUpdateDashboardApi(id)({
         json_metadata: JSON.stringify({
           ...metadata,
           filter_bar_orientation: orientation,
@@ -52,21 +42,7 @@ export function useSaveFilterBarOrientation() {
       return { id, response };
     },
     onSuccess: ({ id, response }) => {
-      const updatedDashboard = response.result;
-      const lastModifiedTime = response.last_modified_time;
-      if (updatedDashboard.json_metadata) {
-        const metadata = JSON.parse(updatedDashboard.json_metadata);
-        if (metadata.filter_bar_orientation) {
-          useDashboardInfoStore
-            .getState()
-            .setFilterBarOrientation(metadata.filter_bar_orientation);
-        }
-      }
-      if (lastModifiedTime) {
-        onSave(lastModifiedTime);
-      }
-      rebaselineHydrationDashboardInfo(id);
-      queryClient.invalidateQueries({ queryKey: dashboardKeys.detail(id) });
+      applyMetadataSaveResult(id, response, { markSaved: true });
     },
     onError: async (errorObject: unknown) => {
       const { error } = await getClientErrorObject(

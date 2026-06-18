@@ -17,27 +17,17 @@
  * under the License.
  */
 import { useMutation } from '@tanstack/react-query';
-import { makeApi } from '@superset-ui/core';
 import { t } from '@apache-superset/core/translation';
 import { useToasts } from 'src/components/MessageToasts/withToasts';
 import {
   ChartConfiguration,
-  DashboardInfo,
   GlobalChartCrossFilterConfig,
 } from 'src/dashboard/types';
 import { useDashboardInfoStore } from 'src/dashboard/stores';
-import { rebaselineHydrationDashboardInfo } from 'src/dashboard/util/rebaselineHydrationDashboardInfo';
-import { queryClient } from 'src/queries/queryClient';
-import { dashboardKeys } from '../keys';
-
-const createUpdateDashboardApi = (id: number) =>
-  makeApi<
-    Partial<DashboardInfo>,
-    { result: Partial<DashboardInfo>; last_modified_time: number }
-  >({
-    method: 'PUT',
-    endpoint: `/api/v1/dashboard/${id}`,
-  });
+import {
+  applyMetadataSaveResult,
+  createUpdateDashboardApi,
+} from '../updateDashboardApi';
 
 export interface SaveChartConfigurationVariables {
   chartConfiguration?: ChartConfiguration;
@@ -54,8 +44,7 @@ export async function persistChartConfiguration({
   globalChartConfiguration,
 }: SaveChartConfigurationVariables) {
   const { id, metadata } = useDashboardInfoStore.getState().dashboardInfo;
-  const updateDashboard = createUpdateDashboardApi(id);
-  const response = await updateDashboard({
+  const response = await createUpdateDashboardApi(id)({
     json_metadata: JSON.stringify({
       ...metadata,
       chart_configuration: chartConfiguration ?? metadata.chart_configuration,
@@ -63,11 +52,7 @@ export async function persistChartConfiguration({
         globalChartConfiguration ?? metadata.global_chart_configuration,
     }),
   });
-  useDashboardInfoStore.getState().setDashboardInfo({
-    metadata: JSON.parse(response.result.json_metadata || '{}'),
-  });
-  rebaselineHydrationDashboardInfo(id);
-  queryClient.invalidateQueries({ queryKey: dashboardKeys.detail(id) });
+  applyMetadataSaveResult(id, response);
 }
 
 /** Persists the dashboard's chart cross-filter configuration. */

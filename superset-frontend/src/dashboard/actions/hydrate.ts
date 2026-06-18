@@ -29,10 +29,7 @@ import {
   canUserSaveAsDashboard,
 } from 'src/dashboard/util/permissionUtils';
 import type { Dashboard } from 'src/types/Dashboard';
-import {
-  getCrossFiltersConfiguration,
-  isCrossFiltersEnabled,
-} from 'src/dashboard/util/crossFilters';
+import { getCrossFiltersConfiguration } from 'src/dashboard/util/crossFilters';
 import getLocationHash from 'src/dashboard/util/getLocationHash';
 import type { DashboardEntity } from 'src/dashboard/util/newComponentFactory';
 import { URL_PARAMS } from 'src/constants';
@@ -62,7 +59,6 @@ import { migrateChartCustomizationArray } from '../util/migrateChartCustomizatio
 import {
   ChartsState,
   DashboardLayout,
-  FilterBarOrientation,
   GetState,
   LayoutItem,
   RootState,
@@ -208,9 +204,6 @@ export const hydrateDashboard =
 
     const { roles } = user;
     const canEdit = canUserEditDashboard(dashboard, user);
-    const crossFiltersEnabled = isCrossFiltersEnabled(
-      metadata.cross_filters_enabled as boolean | undefined,
-    );
 
     const hydratedEditMode = canEdit && editMode;
     const hydratedActiveTabs = activeTabs || dashboardState?.activeTabs || [];
@@ -319,9 +312,6 @@ export const hydrateDashboard =
           // legacy, please use state.common instead
           conf: common?.conf,
         },
-        filterBarOrientation:
-          metadata.filter_bar_orientation || FilterBarOrientation.Vertical,
-        crossFiltersEnabled,
       },
       dataMask,
       dashboardFilters,

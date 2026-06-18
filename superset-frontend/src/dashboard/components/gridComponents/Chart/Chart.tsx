@@ -63,6 +63,7 @@ import {
   useDashboardSlicesStore,
   useNativeFiltersStore,
   useDashboardInfoStore,
+  selectCrossFiltersEnabled,
 } from 'src/dashboard/stores';
 import { useDataMaskStore } from 'src/dataMask/useDataMaskStore';
 
@@ -216,9 +217,7 @@ const Chart = (props: ChartProps) => {
   const timeout: number = useDashboardInfoStore(
     s => s.dashboardInfo.common.conf.SUPERSET_WEBSERVER_TIMEOUT as number,
   );
-  const emitCrossFilters = useDashboardInfoStore(
-    s => !!s.dashboardInfo.crossFiltersEnabled,
-  );
+  const emitCrossFilters = useDashboardInfoStore(selectCrossFiltersEnabled);
   const maxRows: number = useDashboardInfoStore(
     s => s.dashboardInfo.common.conf.SQL_MAX_ROW as number,
   );

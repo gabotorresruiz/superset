@@ -24,11 +24,9 @@ import type {
   ChartCustomizationDivider,
   ColumnOption,
 } from '@superset-ui/core';
-import type {
-  DashboardInfo,
-  FilterBarOrientation,
-  FilterConfigItem,
-} from 'src/dashboard/types';
+import type { DashboardInfo, FilterConfigItem } from 'src/dashboard/types';
+import { FilterBarOrientation } from 'src/dashboard/types';
+import { isCrossFiltersEnabled } from 'src/dashboard/util/crossFilters';
 
 /**
  * Loose shape for hydration input: the payload attaches permission flags
@@ -236,15 +234,16 @@ export const useDashboardInfoStore = create<DashboardInfoStore>()(
           'dashboardInfo/hydrateDashboardInfo',
         ),
 
-      // Keep the dedicated field and metadata blob in sync: dashboard saves
-      // build their PUT body by spreading `metadata`, so a stale
-      // metadata.filter_bar_orientation would silently revert the saved value.
+      // `metadata` is the single source of truth for these settings: dashboard
+      // saves build their PUT body by spreading it, and consumers read them via
+      // the selectFilterBarOrientation / selectCrossFiltersEnabled selectors.
+      // Writing only metadata keeps the two from drifting (the cause of the
+      // silent revert-on-save bug a denormalized field would reintroduce).
       setFilterBarOrientation: orientation =>
         set(
           state => ({
             dashboardInfo: {
               ...state.dashboardInfo,
-              filterBarOrientation: orientation,
               metadata: {
                 ...state.dashboardInfo.metadata,
                 filter_bar_orientation: orientation,
@@ -260,7 +259,6 @@ export const useDashboardInfoStore = create<DashboardInfoStore>()(
           state => ({
             dashboardInfo: {
               ...state.dashboardInfo,
-              crossFiltersEnabled,
               metadata: {
                 ...state.dashboardInfo.metadata,
                 cross_filters_enabled: crossFiltersEnabled,
@@ -406,3 +404,20 @@ export const useDashboardInfoStore = create<DashboardInfoStore>()(
     },
   ),
 );
+
+/**
+ * Derives the filter-bar orientation from metadata (the single source of
+ * truth), defaulting to vertical when unset.
+ */
+export const selectFilterBarOrientation = (
+  state: DashboardInfoStore,
+): FilterBarOrientation =>
+  state.dashboardInfo.metadata?.filter_bar_orientation ||
+  FilterBarOrientation.Vertical;
+
+/**
+ * Derives whether cross-filtering is enabled from metadata (the single source
+ * of truth), defaulting to enabled when unset.
+ */
+export const selectCrossFiltersEnabled = (state: DashboardInfoStore): boolean =>
+  isCrossFiltersEnabled(state.dashboardInfo.metadata?.cross_filters_enabled);

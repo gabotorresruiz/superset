@@ -20,13 +20,11 @@ import { useMutation } from '@tanstack/react-query';
 import { SupersetClient } from '@superset-ui/core';
 import { t } from '@apache-superset/core/translation';
 import { useToasts } from 'src/components/MessageToasts/withToasts';
-import {
-  useDashboardStateStore,
-  useDashboardInfoStore,
-} from 'src/dashboard/stores';
+import { useDashboardStateStore } from 'src/dashboard/stores';
 import { queryClient } from 'src/queries/queryClient';
 import { rebaselineHydrationSnapshot } from 'src/dashboard/util/rebaselineHydrationDashboardInfo';
 import { dashboardKeys } from '../keys';
+import { isCurrentDashboard } from '../updateDashboardApi';
 
 /** Publishes / unpublishes a dashboard. */
 export function usePublishDashboard(id: number) {
@@ -40,7 +38,7 @@ export function usePublishDashboard(id: number) {
       }).then(() => isPublished),
     onSuccess: isPublished => {
       // Ignore a response that resolved after the user navigated away.
-      if (useDashboardInfoStore.getState().dashboardInfo?.id !== id) return;
+      if (!isCurrentDashboard(id)) return;
       addSuccessToast(
         isPublished
           ? t('This dashboard is now published')
@@ -53,7 +51,7 @@ export function usePublishDashboard(id: number) {
       rebaselineHydrationSnapshot(id);
     },
     onError: () => {
-      if (useDashboardInfoStore.getState().dashboardInfo?.id !== id) return;
+      if (!isCurrentDashboard(id)) return;
       addDangerToast(t('You do not have permissions to edit this dashboard.'));
     },
   });

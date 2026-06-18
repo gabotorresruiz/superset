@@ -185,6 +185,7 @@ export type DashboardInfo = {
     shared_label_colors: string[];
     map_label_colors: JsonObject;
     cross_filters_enabled: boolean;
+    filter_bar_orientation?: FilterBarOrientation;
     chart_customization_config?: (
       | ChartCustomization
       | ChartCustomizationDivider
@@ -194,8 +195,6 @@ export type DashboardInfo = {
     positions?: JsonObject;
     filter_scopes?: JsonObject;
   };
-  crossFiltersEnabled: boolean;
-  filterBarOrientation: FilterBarOrientation;
   created_on_delta_humanized: string;
   changed_on_delta_humanized: string;
   changed_by?: Owner;

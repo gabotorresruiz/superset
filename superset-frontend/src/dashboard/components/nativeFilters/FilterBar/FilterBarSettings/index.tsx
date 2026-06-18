@@ -23,7 +23,11 @@ import { t } from '@apache-superset/core/translation';
 import { styled, useTheme, css } from '@apache-superset/core/theme';
 import { MenuProps } from '@superset-ui/core/components/Menu';
 import { FilterBarOrientation } from 'src/dashboard/types';
-import { useDashboardInfoStore } from 'src/dashboard/stores';
+import {
+  useDashboardInfoStore,
+  selectFilterBarOrientation,
+  selectCrossFiltersEnabled,
+} from 'src/dashboard/stores';
 import {
   useSaveFilterBarOrientation,
   useSaveCrossFiltersSetting,
@@ -61,10 +65,10 @@ const FilterBarSettings = () => {
   const theme = useTheme();
   const dispatch = useDispatch();
   const isCrossFiltersEnabled = useDashboardInfoStore(
-    s => s.dashboardInfo.crossFiltersEnabled,
+    selectCrossFiltersEnabled,
   );
   const filterBarOrientation = useDashboardInfoStore(
-    s => s.dashboardInfo.filterBarOrientation,
+    selectFilterBarOrientation,
   );
   const [selectedFilterBarOrientation, setSelectedFilterBarOrientation] =
     useState(filterBarOrientation);
@@ -85,16 +89,21 @@ const FilterBarSettings = () => {
       dashboardId,
     });
 
-  const { mutate: saveCrossFiltersSetting } = useSaveCrossFiltersSetting();
+  const { mutateAsync: saveCrossFiltersSetting } = useSaveCrossFiltersSetting();
   const { mutateAsync: saveFilterBarOrientation } =
     useSaveFilterBarOrientation();
 
   const updateCrossFiltersSetting = useCallback(
-    (isEnabled: boolean) => {
+    async (isEnabled: boolean) => {
       if (!isEnabled) {
         dispatch(clearDataMaskState());
       }
-      saveCrossFiltersSetting(isEnabled);
+      try {
+        await saveCrossFiltersSetting(isEnabled);
+      } catch {
+        // revert the local checkbox if the save failed
+        setCrossFiltersEnabled(!isEnabled);
+      }
     },
     [dispatch, saveCrossFiltersSetting],
   );

@@ -18,7 +18,11 @@
  */
 
 import { FilterBarOrientation, DashboardInfo } from 'src/dashboard/types';
-import { useDashboardInfoStore } from './useDashboardInfoStore';
+import {
+  useDashboardInfoStore,
+  selectFilterBarOrientation,
+  selectCrossFiltersEnabled,
+} from './useDashboardInfoStore';
 
 const store = useDashboardInfoStore;
 const getInfo = () => store.getState().dashboardInfo;
@@ -124,25 +128,34 @@ test('setNativeFiltersConfig replaces the config, preserving prior scopes', () =
   expect(next).toMatchObject({ id: 'f1', chartsInScope: [3] });
 });
 
-test('setFilterBarOrientation updates the field and syncs metadata', () => {
+test('setFilterBarOrientation writes the orientation to metadata (the single source)', () => {
   store.getState().setDashboardInfo({ id: 1 });
   store.getState().setFilterBarOrientation(FilterBarOrientation.Horizontal);
-  expect(getInfo().filterBarOrientation).toBe(FilterBarOrientation.Horizontal);
-  // metadata must stay in sync, else a later dashboard save (which spreads
-  // metadata into its PUT body) silently reverts the orientation.
-  expect(
-    (getInfo().metadata as Record<string, unknown>).filter_bar_orientation,
-  ).toBe(FilterBarOrientation.Horizontal);
+  // metadata is the single source the save payload spreads from.
+  expect(getInfo().metadata?.filter_bar_orientation).toBe(
+    FilterBarOrientation.Horizontal,
+  );
+  expect(selectFilterBarOrientation(store.getState())).toBe(
+    FilterBarOrientation.Horizontal,
+  );
   expect(getInfo().id).toBe(1);
 });
 
-test('setCrossFiltersEnabled toggles the flag and syncs metadata', () => {
+test('setCrossFiltersEnabled writes the flag to metadata (the single source)', () => {
   store.getState().setCrossFiltersEnabled(true);
-  expect(getInfo().crossFiltersEnabled).toBe(true);
   expect(getInfo().metadata?.cross_filters_enabled).toBe(true);
+  expect(selectCrossFiltersEnabled(store.getState())).toBe(true);
   store.getState().setCrossFiltersEnabled(false);
-  expect(getInfo().crossFiltersEnabled).toBe(false);
   expect(getInfo().metadata?.cross_filters_enabled).toBe(false);
+  expect(selectCrossFiltersEnabled(store.getState())).toBe(false);
+});
+
+test('selectors default to vertical orientation and enabled cross-filtering when metadata is unset', () => {
+  store.setState({ dashboardInfo: {} as DashboardInfo });
+  expect(selectFilterBarOrientation(store.getState())).toBe(
+    FilterBarOrientation.Vertical,
+  );
+  expect(selectCrossFiltersEnabled(store.getState())).toBe(true);
 });
 
 test('hydrateDashboardInfo seeds the store and resets pending customizations', () => {
