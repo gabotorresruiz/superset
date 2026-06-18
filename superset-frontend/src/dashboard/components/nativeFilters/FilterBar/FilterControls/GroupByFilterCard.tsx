@@ -25,7 +25,6 @@ import {
   useTruncation,
   ChartCustomization,
   NativeFilterTarget,
-  NativeFilterType,
 } from '@superset-ui/core';
 import {
   styled,
@@ -44,17 +43,12 @@ import {
   FormItem,
 } from '@superset-ui/core/components';
 import { propertyComparator } from '@superset-ui/core/components/Select/utils';
-import { useDispatch } from 'react-redux';
 import { useDataMaskStore } from 'src/dataMask/useDataMaskStore';
-import {
-  useNativeFiltersStore,
-  useDashboardInfoStore,
-} from 'src/dashboard/stores';
+import { useDashboardInfoStore } from 'src/dashboard/stores';
 import { TooltipWithTruncation } from 'src/dashboard/components/nativeFilters/FilterCard/TooltipWithTruncation';
-import { addDangerToast } from 'src/components/MessageToasts/actions';
-import { cachedSupersetGet } from 'src/utils/cachedSupersetGet';
+import { useToasts } from 'src/components/MessageToasts/withToasts';
+import { useDatasetMetadata } from 'src/dashboard/queries';
 import { dispatchChartCustomizationHoverAction } from './utils';
-import { mergeExtraFormData } from '../../utils';
 import {
   datasetLabel as getDatasetLabel,
   datasetLabelLower,
@@ -226,6 +220,20 @@ export const createLabelSortComparator =
     return sortAscending ? labelComparator(a, b) : labelComparator(b, a);
   };
 
+/**
+ * Maps a dataset's columns to group-by Select options: drops non-filterable
+ * columns and prefers the verbose name. Extracted for unit testing.
+ */
+export const mapDatasetColumnsToOptions = (
+  columns: ColumnApiResponse[] | undefined,
+): { label: string; value: string }[] =>
+  (columns ?? [])
+    .filter(col => col.filterable !== false)
+    .map(col => ({
+      label: col.verbose_name || col.column_name || col.name || '',
+      value: col.column_name || col.name || '',
+    }));
+
 const GroupByFilterCardContent: FC<{
   customizationItem: ChartCustomization;
   hidePopover: () => void;
@@ -293,14 +301,32 @@ const GroupByFilterCard: FC<GroupByFilterCardProps> = ({
   const dataset = customizationItem.targets?.[0]?.datasetId;
   const [filterTitleRef, , titleElementsTruncated] = useTruncation();
 
-  const [loading, setLoading] = useState(false);
   const [isHoverCardVisible, setIsHoverCardVisible] = useState(false);
-  const [columnOptions, setColumnOptions] = useState<
-    { label: string; value: string }[]
-  >([]);
-  const [datasetName, setDatasetName] = useState<string | undefined>();
 
-  const dispatch = useDispatch();
+  const datasetId =
+    typeof dataset === 'number' || typeof dataset === 'string'
+      ? dataset
+      : typeof dataset === 'object' && dataset !== null && 'value' in dataset
+        ? (dataset as { value: string | number }).value
+        : null;
+
+  const {
+    data: datasetData,
+    isFetching: loading,
+    error: datasetError,
+  } = useDatasetMetadata(datasetId);
+
+  const datasetName = datasetData?.table_name as string | undefined;
+
+  const columnOptions = useMemo(
+    () =>
+      mapDatasetColumnsToOptions(
+        datasetData?.columns as ColumnApiResponse[] | undefined,
+      ),
+    [datasetData],
+  );
+
+  const { addDangerToast } = useToasts();
 
   const isHorizontalLayout = orientation === 'horizontal';
 
@@ -310,12 +336,12 @@ const GroupByFilterCard: FC<GroupByFilterCardProps> = ({
 
   const setHoveredChartCustomization = useCallback(
     () => dispatchChartCustomizationHoverAction(customizationItem.id),
-    [dispatch, customizationItem.id],
+    [customizationItem.id],
   );
 
   const unsetHoveredChartCustomization = useCallback(
     () => dispatchChartCustomizationHoverAction(),
-    [dispatch],
+    [],
   );
 
   const isRequired = useMemo(
@@ -412,86 +438,14 @@ const GroupByFilterCard: FC<GroupByFilterCardProps> = ({
     [canSelectMultiple, dataset, customizationItem, onFilterSelectionChange],
   );
 
-  const filters = useNativeFiltersStore(s => s.filters);
-
-  const dependencies = useMemo(() => {
-    let deps = {};
-
-    Object.entries(filters).forEach(([filterId, filter]) => {
-      if (
-        filter.type === NativeFilterType.Divider ||
-        !effectiveDataMask[filterId]?.filterState?.value
-      ) {
-        return;
-      }
-
-      const filterState = effectiveDataMask[filterId];
-      deps = mergeExtraFormData(deps, filterState?.extraFormData);
-    });
-
-    return deps;
-  }, [effectiveDataMask, filters]);
-
   useEffect(() => {
-    const fetchColumnOptions = async () => {
-      const datasetSource = dataset;
-
-      if (!datasetSource) {
-        return;
-      }
-
-      const datasetId =
-        typeof datasetSource === 'number'
-          ? datasetSource
-          : typeof datasetSource === 'string'
-            ? datasetSource
-            : typeof datasetSource === 'object' &&
-                datasetSource !== null &&
-                'value' in datasetSource
-              ? (datasetSource as { value: string | number }).value
-              : null;
-
-      if (!datasetId) {
-        return;
-      }
-
-      setLoading(true);
-      try {
-        const endpoint = `/api/v1/dataset/${datasetId}`;
-        const { json } = await cachedSupersetGet({ endpoint });
-
-        if (json?.result) {
-          if (json.result.table_name) {
-            setDatasetName(json.result.table_name);
-          }
-          if (json.result.columns) {
-            const options = json.result.columns
-              .filter((col: ColumnApiResponse) => col.filterable !== false)
-              .map((col: ColumnApiResponse) => ({
-                label: col.verbose_name || col.column_name || col.name || '',
-                value: col.column_name || col.name || '',
-              }));
-            setColumnOptions(options);
-          }
-        }
-      } catch (error) {
-        setColumnOptions([]);
-        dispatch(
-          addDangerToast(
-            t(
-              'Failed to load columns for %s %s',
-              datasetLabelLower(),
-              datasetId,
-            ),
-          ),
-        );
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchColumnOptions();
-  }, [dataset, dependencies, dispatch]);
+    if (!datasetError) {
+      return;
+    }
+    addDangerToast(
+      t('Failed to load columns for %s %s', datasetLabelLower(), datasetId),
+    );
+  }, [datasetError, addDangerToast, datasetId]);
 
   const displayTitle = columnDisplayName;
 

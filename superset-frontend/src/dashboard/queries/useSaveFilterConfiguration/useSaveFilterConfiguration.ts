@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useDispatch } from 'react-redux';
 import { Filter, Filters, makeApi } from '@superset-ui/core';
 import { t } from '@apache-superset/core/translation';
@@ -27,7 +27,6 @@ import {
   useDashboardInfoStore,
   type FilterEntry,
 } from 'src/dashboard/stores';
-import { queryClient } from 'src/queries/queryClient';
 import { rebaselineHydrationDashboardInfo } from 'src/dashboard/util/rebaselineHydrationDashboardInfo';
 import { SaveFilterChangesType } from 'src/dashboard/components/nativeFilters/FiltersConfigModal/types';
 import { dashboardKeys } from '../keys';
@@ -41,6 +40,7 @@ const isFilterChangesEmpty = (filterChanges: SaveFilterChangesType) =>
 export function useSaveFilterConfiguration() {
   const dispatch = useDispatch();
   const { addDangerToast } = useToasts();
+  const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (filterChanges: SaveFilterChangesType) => {
       if (isFilterChangesEmpty(filterChanges)) {

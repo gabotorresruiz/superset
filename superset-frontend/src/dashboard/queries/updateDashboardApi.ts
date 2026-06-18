@@ -16,6 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import type { QueryClient } from '@tanstack/react-query';
 import { makeApi } from '@superset-ui/core';
 import { DashboardInfo } from 'src/dashboard/types';
 import {
@@ -23,7 +24,6 @@ import {
   useDashboardStateStore,
 } from 'src/dashboard/stores';
 import { rebaselineHydrationDashboardInfo } from 'src/dashboard/util/rebaselineHydrationDashboardInfo';
-import { queryClient } from 'src/queries/queryClient';
 import { dashboardKeys } from './keys';
 
 export interface UpdateDashboardResponse {
@@ -50,6 +50,7 @@ export const isCurrentDashboard = (id: number): boolean =>
  * post-save contract lives in one place.
  */
 export function applyMetadataSaveResult(
+  queryClient: QueryClient,
   id: number,
   response: UpdateDashboardResponse,
   { markSaved = false }: { markSaved?: boolean } = {},

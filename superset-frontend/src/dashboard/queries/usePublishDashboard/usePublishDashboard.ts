@@ -16,12 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { SupersetClient } from '@superset-ui/core';
 import { t } from '@apache-superset/core/translation';
 import { useToasts } from 'src/components/MessageToasts/withToasts';
 import { useDashboardStateStore } from 'src/dashboard/stores';
-import { queryClient } from 'src/queries/queryClient';
 import { rebaselineHydrationSnapshot } from 'src/dashboard/util/rebaselineHydrationDashboardInfo';
 import { dashboardKeys } from '../keys';
 import { isCurrentDashboard } from '../updateDashboardApi';
@@ -29,6 +28,7 @@ import { isCurrentDashboard } from '../updateDashboardApi';
 /** Publishes / unpublishes a dashboard. */
 export function usePublishDashboard(id: number) {
   const { addSuccessToast, addDangerToast } = useToasts();
+  const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (isPublished: boolean) =>
       SupersetClient.put({

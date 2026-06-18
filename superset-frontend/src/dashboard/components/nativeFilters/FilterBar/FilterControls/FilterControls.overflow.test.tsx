@@ -111,9 +111,9 @@ const buildHorizontalState = (
   dashboardInfo: {
     id: 1,
     dash_edit_perm: true,
-    filterBarOrientation: FilterBarOrientation.Horizontal,
     metadata: {
       native_filter_configuration: filters,
+      filter_bar_orientation: FilterBarOrientation.Horizontal,
     },
   },
   dashboardLayout: {

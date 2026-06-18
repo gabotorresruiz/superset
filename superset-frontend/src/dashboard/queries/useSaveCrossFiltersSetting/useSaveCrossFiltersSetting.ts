@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { t } from '@apache-superset/core/translation';
 import { useToasts } from 'src/components/MessageToasts/withToasts';
 import {
@@ -31,6 +31,7 @@ import {
 /** Persists the dashboard's cross-filtering enabled setting. */
 export function useSaveCrossFiltersSetting() {
   const { addDangerToast } = useToasts();
+  const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (crossFiltersEnabled: boolean) => {
       const { id, metadata } = useDashboardInfoStore.getState().dashboardInfo;
@@ -58,7 +59,7 @@ export function useSaveCrossFiltersSetting() {
       }
     },
     onSuccess: ({ id, response }) => {
-      applyMetadataSaveResult(id, response, { markSaved: true });
+      applyMetadataSaveResult(queryClient, id, response, { markSaved: true });
     },
     onError: () => {
       addDangerToast(t('Failed to save cross-filters setting'));

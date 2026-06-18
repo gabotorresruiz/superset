@@ -50,10 +50,7 @@ import {
   useDashboardLayoutStore,
 } from 'src/dashboard/stores';
 import { useDataMaskStore } from 'src/dataMask/useDataMaskStore';
-import {
-  getFilterValue,
-  getPermalinkValue,
-} from 'src/dashboard/components/nativeFilters/FilterBar/keyValue';
+import { getFilterValue, getPermalinkValue } from 'src/dashboard/queries';
 import DashboardContainer from 'src/dashboard/containers/Dashboard';
 import CrudThemeProvider from 'src/components/CrudThemeProvider';
 import type { DashboardChartStates } from 'src/dashboard/types/chartState';

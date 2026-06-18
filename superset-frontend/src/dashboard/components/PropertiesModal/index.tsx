@@ -26,14 +26,12 @@ import {
 } from '@superset-ui/core/components';
 import { useJsonValidation } from '@superset-ui/core/components/AsyncAceEditor';
 import { type TagType } from 'src/components';
-import rison from 'rison';
 import { t } from '@apache-superset/core/translation';
 import {
   ensureIsArray,
   isFeatureEnabled,
   FeatureFlag,
   getCategoricalSchemeRegistry,
-  SupersetClient,
   getClientErrorObject,
 } from '@superset-ui/core';
 
@@ -45,8 +43,11 @@ import {
   getFreshLabelsColorMapEntries,
 } from 'src/utils/colorScheme';
 import { useDispatch } from 'react-redux';
-import { useQueryClient } from '@tanstack/react-query';
-import { useDashboardQuery, dashboardKeys } from 'src/dashboard/queries';
+import {
+  useDashboardQuery,
+  useThemes,
+  useSaveDashboardProperties,
+} from 'src/dashboard/queries';
 import {
   useDashboardStateStore,
   useDashboardInfoStore,
@@ -114,7 +115,7 @@ const PropertiesModal = ({
   show = false,
 }: PropertiesModalProps) => {
   const dispatch = useDispatch();
-  const queryClient = useQueryClient();
+  const saveProperties = useSaveDashboardProperties(dashboardId);
   const [form] = Form.useForm();
 
   // TanStack Query: only fetch when modal is open and the caller didn't pass dashboardInfo.
@@ -148,20 +149,18 @@ const PropertiesModal = ({
   const [refreshFrequency, setRefreshFrequency] = useState(0);
   const [selectedThemeId, setSelectedThemeId] = useState<number | null>(null);
   const [showChartTimestamps, setShowChartTimestamps] = useState(false);
-  const [themes, setThemes] = useState<
-    Array<{
-      id: number;
-      theme_name: string;
-      json_data?: string;
-    }>
-  >([]);
+  const { data: themes = [], error: themesError } = useThemes({
+    enabled: show,
+  });
   const categoricalSchemeRegistry = getCategoricalSchemeRegistry();
   const originalDashboardMetadata = useRef<Record<string, any>>({});
   const originalCss = useRef<string | null>(null);
   const cssDebounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const handleErrorResponse = async (response: Response) => {
-    const { error, statusText, message } = await getClientErrorObject(response);
+  const handleErrorResponse = async (response: unknown) => {
+    const { error, statusText, message } = await getClientErrorObject(
+      response as Parameters<typeof getClientErrorObject>[0],
+    );
     let errorText = error || statusText || t('An error has occurred');
     if (
       typeof message === 'object' &&
@@ -443,19 +442,14 @@ const PropertiesModal = ({
         ...morePutProps,
       };
 
-      SupersetClient.put({
-        endpoint: `/api/v1/dashboard/${dashboardId}`,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(saveData),
-      }).then(() => {
-        // Invalidate so any next read (modal re-open, dashboard page) refetches.
-        queryClient.invalidateQueries({
-          queryKey: dashboardKeys.detail(dashboardId),
-        });
-        onSubmit(onSubmitProps);
-        onHide();
-        addSuccessToast(t('The dashboard has been saved'));
-      }, handleErrorResponse);
+      saveProperties.mutate(saveData, {
+        onSuccess: () => {
+          onSubmit(onSubmitProps);
+          onHide();
+          addSuccessToast(t('The dashboard has been saved'));
+        },
+        onError: error => handleErrorResponse(error),
+      });
     }
   };
 
@@ -481,36 +475,14 @@ const PropertiesModal = ({
         setIsLoading(false);
       }
       // Else: waiting on useDashboardQuery; isLoading stays true until it resolves.
-
-      // Fetch themes (excluding system themes)
-      const themeQuery = rison.encode({
-        columns: ['id', 'theme_name', 'is_system', 'json_data'],
-        filters: [
-          {
-            col: 'is_system',
-            opr: 'eq',
-            value: false,
-          },
-        ],
-      });
-      SupersetClient.get({ endpoint: `/api/v1/theme/?q=${themeQuery}` })
-        .then(({ json }) => {
-          const fetchedThemes = json.result;
-          setThemes(fetchedThemes);
-        })
-        .catch(() => {
-          addDangerToast(
-            t('An error occurred while fetching available themes'),
-          );
-        });
     }
-  }, [
-    currentDashboardInfo,
-    queryDashboard,
-    handleDashboardData,
-    show,
-    addDangerToast,
-  ]);
+  }, [currentDashboardInfo, queryDashboard, handleDashboardData, show]);
+
+  useEffect(() => {
+    if (themesError) {
+      addDangerToast(t('An error occurred while fetching available themes'));
+    }
+  }, [themesError, addDangerToast]);
 
   useEffect(() => {
     // the title can be changed inline in the dashboard, this catches it

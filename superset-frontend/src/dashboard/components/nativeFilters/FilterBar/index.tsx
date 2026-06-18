@@ -69,7 +69,7 @@ import {
   useFilterUpdates,
   useInitialization,
 } from './state';
-import { createFilterKey, updateFilterKey } from './keyValue';
+import { createFilterKey, updateFilterKey } from 'src/dashboard/queries';
 import ActionButtons from './ActionButtons';
 import Horizontal from './Horizontal';
 import Vertical from './Vertical';

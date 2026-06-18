@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { getClientErrorObject } from '@superset-ui/core';
 import { t } from '@apache-superset/core/translation';
 import { useToasts } from 'src/components/MessageToasts/withToasts';
@@ -30,6 +30,7 @@ import {
 /** Persists the filter bar orientation (vertical / horizontal). */
 export function useSaveFilterBarOrientation() {
   const { addDangerToast } = useToasts();
+  const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (orientation: FilterBarOrientation) => {
       const { id, metadata } = useDashboardInfoStore.getState().dashboardInfo;
@@ -42,7 +43,7 @@ export function useSaveFilterBarOrientation() {
       return { id, response };
     },
     onSuccess: ({ id, response }) => {
-      applyMetadataSaveResult(id, response, { markSaved: true });
+      applyMetadataSaveResult(queryClient, id, response, { markSaved: true });
     },
     onError: async (errorObject: unknown) => {
       const { error } = await getClientErrorObject(

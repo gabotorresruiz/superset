@@ -16,18 +16,18 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { SupersetClient } from '@superset-ui/core';
 import { t } from '@apache-superset/core/translation';
 import { useToasts } from 'src/components/MessageToasts/withToasts';
 import { useDashboardStateStore } from 'src/dashboard/stores';
-import { queryClient } from 'src/queries/queryClient';
 import { dashboardKeys } from '../keys';
 import { isCurrentDashboard } from '../updateDashboardApi';
 
 /** Favorites / unfavorites a dashboard for the current user. */
 export function useToggleFavorite(id: number) {
   const { addDangerToast } = useToasts();
+  const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (isStarred: boolean) => {
       const endpoint = `/api/v1/dashboard/${id}/favorites/`;

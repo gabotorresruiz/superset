@@ -45,3 +45,29 @@ export const sliceKeys = {
   list: (params: SlicesListParams) =>
     [...sliceKeys.all, 'list', params] as const,
 } as const;
+
+/** Query keys for dataset metadata reads (filter config column/metric lookups). */
+export const datasetKeys = {
+  all: ['dataset'] as const,
+  metadata: (idOrSlug: string | number, columns?: string[]) =>
+    [
+      ...datasetKeys.all,
+      'metadata',
+      String(idOrSlug),
+      columns ?? null,
+    ] as const,
+  list: (query: string) => [...datasetKeys.all, 'list', query] as const,
+} as const;
+
+/** Query key for the dashboard properties theme picker. */
+export const themeKeys = {
+  all: ['theme'] as const,
+  list: (query: string) => [...themeKeys.all, 'list', query] as const,
+} as const;
+
+/** Query keys for dashboard related-object lookups (owners / roles selects). */
+export const relatedKeys = {
+  all: ['dashboardRelated'] as const,
+  list: (accessType: string, query: string) =>
+    [...relatedKeys.all, accessType, query] as const,
+} as const;

@@ -17,8 +17,45 @@
  * under the License.
  */
 
-export { dashboardKeys, sliceKeys } from './keys';
+export {
+  dashboardKeys,
+  sliceKeys,
+  datasetKeys,
+  themeKeys,
+  relatedKeys,
+} from './keys';
 export type { SlicesListParams } from './keys';
+export {
+  useDatasetMetadata,
+  fetchDatasetMetadata,
+  fetchDatasetList,
+} from './useDatasetMetadata/useDatasetMetadata';
+export type { DatasetListResult } from './useDatasetMetadata/useDatasetMetadata';
+export {
+  createUpdateDashboardApi,
+  isCurrentDashboard,
+  applyMetadataSaveResult,
+} from './updateDashboardApi';
+export type { UpdateDashboardResponse } from './updateDashboardApi';
+export { useThemes } from './useThemes/useThemes';
+export type { ThemeOption } from './useThemes/useThemes';
+export { fetchRelatedOptions } from './relatedOptions';
+export type { RelatedOptionsResult } from './relatedOptions';
+export { getClientErrorFromUnknown } from './getClientError';
+export {
+  updateFilterKey,
+  createFilterKey,
+  getFilterValue,
+  getPermalinkValue,
+} from './filterStateApi';
+export { exportDashboardAsExample } from './exportDashboard';
+export { useSaveDashboardProperties } from './useSaveDashboardProperties/useSaveDashboardProperties';
+export {
+  useEmbeddedDashboard,
+  useEnableEmbedded,
+  useDisableEmbedded,
+  embeddedKeys,
+} from './useEmbeddedDashboard/useEmbeddedDashboard';
 export { useDashboardQuery } from './useDashboardData/useDashboardData';
 export {
   useSlicesQuery,

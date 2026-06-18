@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useDispatch } from 'react-redux';
 import {
   makeApi,
@@ -39,7 +39,6 @@ import {
   type FilterEntry,
 } from 'src/dashboard/stores';
 import { rebaselineHydrationDashboardInfo } from 'src/dashboard/util/rebaselineHydrationDashboardInfo';
-import { queryClient } from 'src/queries/queryClient';
 import { SaveFilterChangesType } from 'src/dashboard/components/nativeFilters/FiltersConfigModal/types';
 import { dashboardKeys } from '../keys';
 
@@ -70,6 +69,7 @@ interface SaveChartCustomizationVariables {
 export function useSaveChartCustomization() {
   const dispatch = useDispatch();
   const { addDangerToast } = useToasts();
+  const queryClient = useQueryClient();
   return useMutation<
     { result: Partial<DashboardInfo>; last_modified_time: number },
     unknown,

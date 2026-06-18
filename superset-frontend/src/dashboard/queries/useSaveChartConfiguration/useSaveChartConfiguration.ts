@@ -24,6 +24,7 @@ import {
   GlobalChartCrossFilterConfig,
 } from 'src/dashboard/types';
 import { useDashboardInfoStore } from 'src/dashboard/stores';
+import { queryClient } from 'src/queries/queryClient';
 import {
   applyMetadataSaveResult,
   createUpdateDashboardApi,
@@ -52,7 +53,7 @@ export async function persistChartConfiguration({
         globalChartConfiguration ?? metadata.global_chart_configuration,
     }),
   });
-  applyMetadataSaveResult(id, response);
+  applyMetadataSaveResult(queryClient, id, response);
 }
 
 /** Persists the dashboard's chart cross-filter configuration. */
