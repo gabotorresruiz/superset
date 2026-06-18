@@ -39,11 +39,6 @@ import {
 import type { DashboardLayout } from 'src/dashboard/types';
 import useStoredSidebarWidth from 'src/components/ResizableSidebar/useStoredSidebarWidth';
 import {
-  fetchFaveStar,
-  setActiveTab,
-  setDirectPathToChild,
-} from 'src/dashboard/actions/dashboardState';
-import {
   dashboardLayout as undoableDashboardLayout,
   dashboardLayoutWithTabs as undoableDashboardLayoutWithTabs,
 } from 'spec/fixtures/mockDashboardLayout';
@@ -57,11 +52,11 @@ fetchMock.put('glob:*/api/v1/dashboard/*', {});
 // Add mock for logging endpoint
 fetchMock.post('glob:*/superset/log/?*', {});
 
-jest.mock('src/dashboard/actions/dashboardState', () => ({
-  ...jest.requireActual('src/dashboard/actions/dashboardState'),
-  fetchFaveStar: jest.fn(),
-  setActiveTab: jest.fn(),
-  setDirectPathToChild: jest.fn(),
+// The Header fetches the favorite status via useFavoriteStatus on mount; mock
+// the queries module so it doesn't make a request during the test.
+jest.mock('src/dashboard/queries', () => ({
+  ...jest.requireActual('src/dashboard/queries'),
+  useFavoriteStatus: jest.fn(() => ({ data: undefined })),
 }));
 jest.mock('src/components/ResizableSidebar/useStoredSidebarWidth');
 
@@ -115,20 +110,7 @@ jest.mock('src/dashboard/containers/DashboardGrid', () => {
 
 // eslint-disable-next-line no-restricted-globals -- TODO: Migrate from describe blocks
 describe('DashboardBuilder', () => {
-  let favStarStub: jest.Mock;
-  let activeTabsStub: jest.Mock;
-
   beforeAll(() => {
-    // this is invoked on mount, so we stub it instead of making a request
-    favStarStub = (fetchFaveStar as jest.Mock).mockReturnValue({
-      type: 'mock-action',
-    });
-    activeTabsStub = (setActiveTab as jest.Mock).mockReturnValue({
-      type: 'mock-action',
-    });
-    (setDirectPathToChild as jest.Mock).mockReturnValue({
-      type: 'mock-setDirectPathToChild',
-    });
     (useStoredSidebarWidth as jest.Mock).mockImplementation(() => [
       100,
       jest.fn(),
@@ -136,9 +118,6 @@ describe('DashboardBuilder', () => {
   });
 
   afterAll(() => {
-    favStarStub.mockReset();
-    activeTabsStub.mockReset();
-    (setDirectPathToChild as jest.Mock).mockReset();
     (useStoredSidebarWidth as jest.Mock).mockReset();
   });
 
@@ -326,25 +305,19 @@ describe('DashboardBuilder', () => {
     expect(builderComponents.length).toBeGreaterThanOrEqual(1);
   });
 
-  test('should change redux state if a top-level Tab is clicked', async () => {
-    (setDirectPathToChild as jest.Mock).mockImplementation(arg0 => ({
-      type: 'type',
-      arg0,
-    }));
+  test('should update directPathToChild if a top-level Tab is clicked', async () => {
     const { findByRole } = setup({
       dashboardLayout: undoableDashboardLayoutWithTabs,
     });
     const tabList = await findByRole('tablist');
     const tabs = within(tabList).getAllByRole('tab');
-    // Clear any calls that happened during mount/render
-    (setDirectPathToChild as jest.Mock).mockClear();
+    useDashboardStateStore.setState({ directPathToChild: [] });
     fireEvent.click(tabs[1]);
-    expect(setDirectPathToChild).toHaveBeenCalledWith([
+    expect(useDashboardStateStore.getState().directPathToChild).toEqual([
       'ROOT_ID',
       'TABS_ID',
       'TAB_ID2',
     ]);
-    (setDirectPathToChild as jest.Mock).mockReset();
   });
 
   test('should not display a loading spinner when saving is not in progress', () => {
@@ -544,8 +517,6 @@ test('should render ParentSize wrapper with height 100% for tabs', async () => {
     100,
     jest.fn(),
   ]);
-  (fetchFaveStar as jest.Mock).mockReturnValue({ type: 'mock-action' });
-  (setActiveTab as jest.Mock).mockReturnValue({ type: 'mock-action' });
 
   useDashboardLayoutStore.setState({
     layout:
@@ -578,8 +549,6 @@ test('should apply min-height to the top-level tab drop target so tabs can be dr
     100,
     jest.fn(),
   ]);
-  (fetchFaveStar as jest.Mock).mockReturnValue({ type: 'mock-action' });
-  (setActiveTab as jest.Mock).mockReturnValue({ type: 'mock-action' });
 
   // editMode and layout drive the empty-droptarget; both are read from the
   // Zustand stores, so seed them rather than relying on the Redux store alone.
@@ -628,12 +597,6 @@ test('should maintain layout when switching between tabs', async () => {
     100,
     jest.fn(),
   ]);
-  (fetchFaveStar as jest.Mock).mockReturnValue({ type: 'mock-action' });
-  (setActiveTab as jest.Mock).mockReturnValue({ type: 'mock-action' });
-  (setDirectPathToChild as jest.Mock).mockImplementation(arg0 => ({
-    type: 'type',
-    arg0,
-  }));
 
   useDashboardLayoutStore.setState({
     layout:

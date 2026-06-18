@@ -17,11 +17,9 @@
  * under the License.
  */
 
-import * as reactRedux from 'react-redux';
 import { Filter, NativeFilterType } from '@superset-ui/core';
 import { render, screen, userEvent } from 'spec/helpers/testing-library';
 import { DASHBOARD_ROOT_ID } from 'src/dashboard/util/constants';
-import { SET_DIRECT_PATH } from 'src/dashboard/actions/dashboardState';
 import {
   useDashboardStateStore,
   useDashboardLayoutStore,
@@ -322,9 +320,7 @@ test('filter card with dependency', () => {
 });
 
 test('focus filter on filter card dependency click', () => {
-  const useDispatchMock = jest.spyOn(reactRedux, 'useDispatch');
-  const dummyDispatch = jest.fn();
-  useDispatchMock.mockReturnValue(dummyDispatch);
+  useDashboardStateStore.setState({ directPathToChild: [] });
 
   const filter = {
     ...baseFilter,
@@ -333,10 +329,9 @@ test('focus filter on filter card dependency click', () => {
   renderContent(filter);
 
   userEvent.click(screen.getByText('Native filter 2'));
-  expect(dummyDispatch).toHaveBeenCalledWith({
-    type: SET_DIRECT_PATH,
-    path: ['NATIVE_FILTER-2'],
-  });
+  expect(useDashboardStateStore.getState().directPathToChild).toEqual([
+    'NATIVE_FILTER-2',
+  ]);
 });
 
 test('edit filter button for dashboard viewer', () => {

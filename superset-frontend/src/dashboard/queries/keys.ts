@@ -28,6 +28,9 @@ export const dashboardKeys = {
   // Used by useDiscardChanges to re-seed dashboard state without a page reload.
   hydrationPayload: (idOrSlug: string | number) =>
     [...dashboardKeys.hydrationPayloadAll, String(idOrSlug)] as const,
+  // The current user's favorite status for a dashboard.
+  favoriteStatus: (idOrSlug: string | number) =>
+    [...dashboardKeys.all, 'favorite-status', String(idOrSlug)] as const,
 } as const;
 
 export interface SlicesListParams {

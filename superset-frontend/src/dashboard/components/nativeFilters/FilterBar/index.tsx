@@ -45,11 +45,7 @@ import { styled } from '@apache-superset/core/theme';
 import { Constants } from '@superset-ui/core/components';
 import { useHistory } from 'react-router-dom';
 import { updateDataMask, removeDataMask } from 'src/dataMask/actions';
-import {
-  saveChartCustomization,
-  clearAllPendingChartCustomizations,
-  clearAllChartCustomizationsFromMetadata,
-} from 'src/dashboard/actions/chartCustomizationActions';
+import { useSaveChartCustomization } from 'src/dashboard/queries';
 
 import { useImmer } from 'use-immer';
 import { isEmpty, isEqual, debounce } from 'lodash';
@@ -185,6 +181,7 @@ const FilterBar: FC<FiltersBarProps> = ({
     useState<Record<string, DataMask>>(EMPTY_DATA_MASK_RECORD);
   const chartCustomizationValues = useChartCustomizationConfiguration();
   const dispatch = useDispatch();
+  const { mutate: saveChartCustomization } = useSaveChartCustomization();
   const [updateKey, setUpdateKey] = useState(0);
   const tabId = useTabId();
   const filters = useFilters();
@@ -461,9 +458,12 @@ const FilterBar: FC<FiltersBarProps> = ({
       ) as (ChartCustomization | ChartCustomizationDivider)[];
 
       if (pendingItems.length > 0) {
-        dispatch(saveChartCustomization(pendingItems, []));
+        saveChartCustomization({
+          modifiedCustomizations: pendingItems,
+          deletedIds: [],
+        });
       }
-      dispatch(clearAllPendingChartCustomizations());
+      useDashboardInfoStore.getState().clearAllPendingChartCustomizations();
       setPendingCustomizationDataMasks({});
     } else if (hasClearedChartCustomizations) {
       const clearedChartCustomizations = chartCustomizationValues.map(item => ({
@@ -479,9 +479,12 @@ const FilterBar: FC<FiltersBarProps> = ({
         dispatch(removeDataMask(item.id));
       });
 
-      dispatch(clearAllChartCustomizationsFromMetadata());
+      useDashboardInfoStore.getState().clearAllChartCustomizations();
 
-      dispatch(saveChartCustomization(clearedChartCustomizations, []));
+      saveChartCustomization({
+        modifiedCustomizations: clearedChartCustomizations,
+        deletedIds: [],
+      });
     }
 
     setHasClearedChartCustomizations(false);
@@ -493,6 +496,7 @@ const FilterBar: FC<FiltersBarProps> = ({
     pendingCustomizationDataMasks,
     hasClearedChartCustomizations,
     chartCustomizationValues,
+    saveChartCustomization,
   ]);
 
   const handleClearAll = useCallback(() => {
@@ -552,7 +556,7 @@ const FilterBar: FC<FiltersBarProps> = ({
         });
       });
 
-      dispatch(clearAllPendingChartCustomizations());
+      useDashboardInfoStore.getState().clearAllPendingChartCustomizations();
       setPendingCustomizationDataMasks({});
       setHasClearedChartCustomizations(true);
     }

@@ -16,12 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useMemo } from 'react';
-import { bindActionCreators } from 'redux';
-import { useDispatch } from 'react-redux';
 import DashboardGrid from '../components/DashboardGrid';
 import type { DashboardGridProps } from '../components/DashboardGrid';
-import { setDirectPathToChild } from '../actions/dashboardState';
 import {
   useDashboardStateStore,
   useDashboardLayoutStore,
@@ -44,30 +40,19 @@ type DashboardGridContainerProps = Omit<
 export default function DashboardGridContainer(
   props: DashboardGridContainerProps,
 ) {
-  const dispatch = useDispatch();
   const editMode = useDashboardStateStore(s => s.editMode);
-  const { setEditMode } = useDashboardStateStore.getState();
+  const { setEditMode, setDirectPathToChild } =
+    useDashboardStateStore.getState();
   const canEdit = useDashboardInfoStore(s => s.dashboardInfo.dash_edit_perm);
   const dashboardId = useDashboardInfoStore(s => s.dashboardInfo.id);
 
   const handleComponentDrop = useHandleComponentDrop();
   const resizeComponent = useDashboardLayoutStore(s => s.resizeComponent);
 
-  const boundActions = useMemo(
-    () =>
-      bindActionCreators(
-        {
-          setDirectPathToChild,
-        },
-        dispatch,
-      ),
-    [dispatch],
-  );
-
   return (
     <DashboardGrid
       {...props}
-      {...boundActions}
+      setDirectPathToChild={setDirectPathToChild}
       handleComponentDrop={handleComponentDrop}
       resizeComponent={resizeComponent}
       editMode={editMode}

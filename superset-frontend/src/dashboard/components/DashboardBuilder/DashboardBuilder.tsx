@@ -30,7 +30,6 @@ import {
 import { t } from '@apache-superset/core/translation';
 import { addAlpha, JsonObject, useElementOnScreen } from '@superset-ui/core';
 import { css, styled, useTheme } from '@apache-superset/core/theme';
-import { useDispatch } from 'react-redux';
 import { EmptyState, Loading } from '@superset-ui/core/components';
 import { ErrorBoundary, BasicErrorAlert } from 'src/components';
 import BuilderComponentPane from 'src/dashboard/components/BuilderComponentPane';
@@ -44,7 +43,6 @@ import getDirectPathToTabIndex from 'src/dashboard/util/getDirectPathToTabIndex'
 import { URL_PARAMS } from 'src/constants';
 import { getUrlParam } from 'src/utils/urlUtils';
 import { FilterBarOrientation } from 'src/dashboard/types';
-import { setDirectPathToChild } from 'src/dashboard/actions/dashboardState';
 import {
   DASHBOARD_GRID_ID,
   DASHBOARD_ROOT_DEPTH,
@@ -363,7 +361,6 @@ const ELEMENT_ON_SCREEN_OPTIONS = {
 };
 
 const DashboardBuilder = () => {
-  const dispatch = useDispatch();
   const uiConfig = useUiConfig();
   const theme = useTheme();
 
@@ -379,10 +376,10 @@ const DashboardBuilder = () => {
 
   const handleChangeTab = useCallback(
     ({ pathToTabIndex }: { pathToTabIndex: string[] }) => {
-      dispatch(setDirectPathToChild(pathToTabIndex));
+      useDashboardStateStore.getState().setDirectPathToChild(pathToTabIndex);
       window.scrollTo(0, 0);
     },
-    [dispatch],
+    [],
   );
 
   const handleDeleteTopLevelTabs = useCallback(() => {
@@ -392,8 +389,8 @@ const DashboardBuilder = () => {
       getRootLevelTabsComponent(dashboardLayout),
       0,
     );
-    dispatch(setDirectPathToChild(firstTab));
-  }, [dashboardLayout, dispatch]);
+    useDashboardStateStore.getState().setDirectPathToChild(firstTab);
+  }, [dashboardLayout]);
 
   const handleDrop = useHandleComponentDrop();
 
@@ -497,7 +494,7 @@ const DashboardBuilder = () => {
         getRootLevelTabsComponent(dashboardLayout),
         newTabsLength - 1,
       );
-      dispatch(setDirectPathToChild(lastTab));
+      useDashboardStateStore.getState().setDirectPathToChild(lastTab);
     }
 
     currentTopLevelTabs.current = topLevelTabs;

@@ -176,21 +176,15 @@ const addWarningToast = jest.fn();
 const onUndo = jest.fn();
 const onRedo = jest.fn();
 const setEditMode = jest.fn();
-const setUnsavedChanges = jest.fn();
-const fetchFaveStar = jest.fn();
-const saveFaveStar = jest.fn();
-const savePublished = jest.fn();
 const fetchCharts = jest.fn();
 const updateDashboardTitle = jest.fn();
 const updateCss = jest.fn();
-const onChange = jest.fn();
 const onSave = jest.fn();
 const setMaxUndoHistoryExceeded = jest.fn();
 const maxUndoHistoryToast = jest.fn();
 const logEvent = jest.fn();
 const setRefreshFrequency = jest.fn();
 const onRefresh = jest.fn();
-const dashboardInfoChanged = jest.fn();
 const dashboardTitleChanged = jest.fn();
 const startAutoRefresh = jest.fn();
 const endAutoRefresh = jest.fn();
@@ -219,6 +213,27 @@ jest.mock('src/dashboard/queries/useSaveDashboard/useSaveDashboard', () => ({
     reset: jest.fn(),
   }),
 }));
+// PublishedStatus publishes via the usePublishDashboard mutation hook.
+const mockPublish = jest.fn();
+jest.mock(
+  'src/dashboard/queries/usePublishDashboard/usePublishDashboard',
+  () => ({
+    usePublishDashboard: () => ({ mutate: mockPublish }),
+  }),
+);
+// Favoriting flows through the favorite query/mutation hooks. Mock the
+// submodules directly (not the barrel) to avoid re-evaluating queries/index.
+const mockUseFavoriteStatus = jest.fn((_id: number, _enabled?: boolean) => ({
+  data: undefined,
+}));
+jest.mock('src/dashboard/queries/useFavoriteStatus/useFavoriteStatus', () => ({
+  useFavoriteStatus: (id: number, enabled?: boolean) =>
+    mockUseFavoriteStatus(id, enabled),
+}));
+const mockToggleFavorite = jest.fn();
+jest.mock('src/dashboard/queries/useToggleFavorite/useToggleFavorite', () => ({
+  useToggleFavorite: () => ({ mutate: mockToggleFavorite }),
+}));
 jest.mock('src/dashboard/contexts/AutoRefreshContext', () => ({
   useAutoRefreshContext: jest.fn(),
 }));
@@ -246,21 +261,15 @@ beforeAll(() => {
     onUndo,
     onRedo,
     setEditMode,
-    setUnsavedChanges,
-    fetchFaveStar,
-    saveFaveStar,
-    savePublished,
     fetchCharts,
     updateDashboardTitle,
     updateCss,
-    onChange,
     onSave,
     setMaxUndoHistoryExceeded,
     maxUndoHistoryToast,
     logEvent,
     setRefreshFrequency,
     onRefresh,
-    dashboardInfoChanged,
     dashboardTitleChanged,
   }));
 });
@@ -321,13 +330,14 @@ test('should render the editable title', () => {
 
 test('should edit the title', () => {
   setup(editableState);
+  useDashboardStateStore.setState({ hasUnsavedChanges: false });
   const editableTitle = screen.getByDisplayValue('Dashboard Title');
-  expect(onChange).not.toHaveBeenCalled();
+  expect(useDashboardStateStore.getState().hasUnsavedChanges).toBe(false);
   userEvent.click(editableTitle);
   userEvent.clear(editableTitle);
   userEvent.type(editableTitle, 'New Title');
   userEvent.click(document.body);
-  expect(onChange).toHaveBeenCalled();
+  expect(useDashboardStateStore.getState().hasUnsavedChanges).toBe(true);
   expect(screen.getByDisplayValue('New Title')).toBeInTheDocument();
 });
 
@@ -344,10 +354,9 @@ test('typing in the title enables Save immediately and commits once on blur', ()
   userEvent.clear(editableTitle);
   userEvent.type(editableTitle, 'abcdef');
   // Save enables as soon as the title diverges (unsaved flagged on the store),
-  // but the title isn't committed and no Redux action is dispatched per keystroke.
+  // but the title isn't committed per keystroke.
   expect(useDashboardStateStore.getState().hasUnsavedChanges).toBe(true);
   expect(titleSpy).not.toHaveBeenCalled();
-  expect(onChange).not.toHaveBeenCalled();
   // Commit by blurring
   userEvent.click(document.body);
   expect(titleSpy).toHaveBeenCalledTimes(1);
@@ -370,9 +379,9 @@ test('should publish', () => {
   };
   setup(canEditState);
   const draft = screen.getByText('Draft');
-  expect(savePublished).toHaveBeenCalledTimes(0);
+  expect(mockPublish).toHaveBeenCalledTimes(0);
   userEvent.click(draft);
-  expect(savePublished).toHaveBeenCalledTimes(1);
+  expect(mockPublish).toHaveBeenCalledWith(true);
 });
 
 test('should render metadata', () => {
@@ -523,7 +532,7 @@ test('should NOT render the "Draft" status', () => {
 
 test('should render the unselected fave icon', () => {
   setup();
-  expect(fetchFaveStar).toHaveBeenCalled();
+  expect(mockUseFavoriteStatus).toHaveBeenCalled();
   expect(screen.getByRole('img', { name: 'unstarred' })).toBeInTheDocument();
 });
 
@@ -554,38 +563,32 @@ test('should NOT render the fave icon on anonymous user', () => {
 test('should fave', async () => {
   setup();
   const fave = screen.getByRole('img', { name: 'unstarred' });
-  expect(saveFaveStar).not.toHaveBeenCalled();
+  expect(mockToggleFavorite).not.toHaveBeenCalled();
   userEvent.click(fave);
-  expect(saveFaveStar).toHaveBeenCalledTimes(1);
+  expect(mockToggleFavorite).toHaveBeenCalledTimes(1);
 });
 
-// FaveStar.onClick passes the *prior* isStarred value to saveFaveStar — the
-// reducer flips it. So favoriting (unstarred → starred) sends `false`, and
+// FaveStar.onClick passes the *prior* isStarred value through; the toggle
+// mutation flips it. So favoriting (unstarred → starred) sends `false`, and
 // unfavoriting (starred → unstarred) sends `true`.
-test('should call saveFaveStar with false when favoriting from the header', () => {
+test('should toggle favorite with false when favoriting from the header', () => {
   setup();
   const header = screen.getByTestId('dashboard-header-container');
 
   userEvent.click(within(header).getByRole('img', { name: 'unstarred' }));
-  expect(saveFaveStar).toHaveBeenCalledTimes(1);
-  expect(saveFaveStar).toHaveBeenCalledWith(
-    initialState.dashboardInfo.id,
-    false,
-  );
+  expect(mockToggleFavorite).toHaveBeenCalledTimes(1);
+  expect(mockToggleFavorite).toHaveBeenCalledWith(false);
 });
 
-test('should call saveFaveStar with true when unfavoriting from the header', () => {
+test('should toggle favorite with true when unfavoriting from the header', () => {
   setup({
     dashboardState: { ...initialState.dashboardState, isStarred: true },
   });
   const header = screen.getByTestId('dashboard-header-container');
 
   userEvent.click(within(header).getByRole('img', { name: 'starred' }));
-  expect(saveFaveStar).toHaveBeenCalledTimes(1);
-  expect(saveFaveStar).toHaveBeenCalledWith(
-    initialState.dashboardInfo.id,
-    true,
-  );
+  expect(mockToggleFavorite).toHaveBeenCalledTimes(1);
+  expect(mockToggleFavorite).toHaveBeenCalledWith(true);
 });
 
 test('should toggle the edit mode', () => {
@@ -890,6 +893,7 @@ test('should clear history and unsaved changes when entering edit mode', () => {
   };
 
   setup(canEditState);
+  useDashboardStateStore.setState({ hasUnsavedChanges: true });
 
   // Seed zundo history so we can prove entering edit mode clears it.
   createLayoutHistory();
@@ -903,7 +907,7 @@ test('should clear history and unsaved changes when entering edit mode', () => {
   expect(useDashboardLayoutStore.temporal.getState().pastStates).toHaveLength(
     0,
   );
-  expect(setUnsavedChanges).toHaveBeenCalledWith(false);
+  expect(useDashboardStateStore.getState().hasUnsavedChanges).toBe(false);
 });
 
 test('should mark theme change as unsaved when in edit mode', async () => {
@@ -923,6 +927,7 @@ test('should mark theme change as unsaved when in edit mode', async () => {
   useDashboardInfoStore.setState({
     dashboardInfo: dashboardInfo as unknown as DashboardInfo,
   });
+  useDashboardStateStore.setState({ hasUnsavedChanges: false });
 
   render(
     <div className="dashboard">
@@ -935,7 +940,7 @@ test('should mark theme change as unsaved when in edit mode', async () => {
     },
   );
 
-  expect(setUnsavedChanges).not.toHaveBeenCalledWith(true);
+  expect(useDashboardStateStore.getState().hasUnsavedChanges).toBe(false);
 
   act(() => {
     useDashboardInfoStore.setState({
@@ -947,11 +952,12 @@ test('should mark theme change as unsaved when in edit mode', async () => {
   });
 
   await waitFor(() => {
-    expect(setUnsavedChanges).toHaveBeenCalledWith(true);
+    expect(useDashboardStateStore.getState().hasUnsavedChanges).toBe(true);
   });
 });
 
 test('should not mark initial theme as unsaved change', () => {
+  useDashboardStateStore.setState({ hasUnsavedChanges: false });
   setup({
     ...editableState,
     dashboardInfo: {
@@ -960,7 +966,7 @@ test('should not mark initial theme as unsaved change', () => {
     },
   });
 
-  expect(setUnsavedChanges).not.toHaveBeenCalledWith(true);
+  expect(useDashboardStateStore.getState().hasUnsavedChanges).toBe(false);
 });
 
 test('should sync theme ref when navigating between dashboards', async () => {
@@ -978,6 +984,7 @@ test('should sync theme ref when navigating between dashboards', async () => {
   useDashboardInfoStore.setState({
     dashboardInfo: dashboardInfo as unknown as DashboardInfo,
   });
+  useDashboardStateStore.setState({ hasUnsavedChanges: false });
 
   render(
     <div className="dashboard">
@@ -990,16 +997,19 @@ test('should sync theme ref when navigating between dashboards', async () => {
     },
   );
 
-  testStore.dispatch({
-    type: 'DASHBOARD_INFO_UPDATED',
-    newInfo: {
+  // Navigating to another dashboard updates the dashboardInfo Zustand store
+  // (the real mechanism post-migration), which should sync the theme ref
+  // without marking unsaved changes.
+  useDashboardInfoStore.setState({
+    dashboardInfo: {
+      ...dashboardInfo,
       id: 2,
       theme: 'DARK',
-    },
+    } as unknown as DashboardInfo,
   });
 
   await waitFor(() => {
-    expect(setUnsavedChanges).toHaveBeenCalledTimes(0);
+    expect(useDashboardStateStore.getState().hasUnsavedChanges).toBe(false);
   });
 });
 

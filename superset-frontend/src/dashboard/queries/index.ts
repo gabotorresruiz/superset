@@ -31,3 +31,11 @@ export {
 } from './useCssTemplates/useCssTemplates';
 export { useDiscardChanges } from './useDiscardChanges/useDiscardChanges';
 export { useSaveDashboard } from './useSaveDashboard/useSaveDashboard';
+export { usePublishDashboard } from './usePublishDashboard/usePublishDashboard';
+export { useSaveChartConfiguration } from './useSaveChartConfiguration/useSaveChartConfiguration';
+export { useSaveFilterBarOrientation } from './useSaveFilterBarOrientation/useSaveFilterBarOrientation';
+export { useSaveCrossFiltersSetting } from './useSaveCrossFiltersSetting/useSaveCrossFiltersSetting';
+export { useSaveFilterConfiguration } from './useSaveFilterConfiguration/useSaveFilterConfiguration';
+export { useSaveChartCustomization } from './useSaveChartCustomization/useSaveChartCustomization';
+export { useToggleFavorite } from './useToggleFavorite/useToggleFavorite';
+export { useFavoriteStatus } from './useFavoriteStatus/useFavoriteStatus';

@@ -16,39 +16,22 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import {
-  JsonResponse,
-  SupersetClient,
-  isFeatureEnabled,
-} from '@superset-ui/core';
+import { SupersetClient, isFeatureEnabled } from '@superset-ui/core';
 import { waitFor } from 'spec/helpers/testing-library';
 
 import {
-  SAVE_DASHBOARD_STARTED,
   saveDashboardRequest,
-  SET_OVERRIDE_CONFIRM,
   fetchCharts,
   onRefresh,
-  ON_FILTERS_REFRESH,
   ON_REFRESH,
-  ON_REFRESH_SUCCESS,
-  TOGGLE_FAVE_STAR,
-  TOGGLE_PUBLISHED,
-  fetchFaveStar,
-  saveFaveStar,
-  savePublished,
-  setActiveTab,
-  SET_ACTIVE_TAB,
 } from 'src/dashboard/actions/dashboardState';
 import { refreshChart } from 'src/components/Chart/chartAction';
-import { ADD_TOAST } from 'src/components/MessageToasts/actions';
-import { ToastType } from 'src/components/MessageToasts/types';
 import {
   useDashboardLayoutStore,
   useDashboardStateStore,
   useDashboardInfoStore,
 } from 'src/dashboard/stores';
-import type { DashboardInfo, DashboardLayout } from 'src/dashboard/types';
+import type { DashboardInfo } from 'src/dashboard/types';
 import {
   SAVE_TYPE_OVERWRITE,
   SAVE_TYPE_OVERWRITE_CONFIRMED,
@@ -145,13 +128,14 @@ describe('dashboardState actions', () => {
 
   // eslint-disable-next-line no-restricted-globals -- TODO: Migrate from describe blocks
   describe('saveDashboardRequest', () => {
-    test('starts the save by dispatching SAVE_DASHBOARD_STARTED', () => {
+    test('starts the save by flagging the dashboard as saving', () => {
       const { getState, dispatch } = setup({
         dashboardState: { hasUnsavedChanges: false },
       });
+      useDashboardStateStore.setState({ dashboardIsSaving: false });
       const thunk = saveDashboardRequest(newDashboardData, 1, 'save_dash');
       thunk(dispatch, getState);
-      expect(dispatch.mock.calls[0][0].type).toBe(SAVE_DASHBOARD_STARTED);
+      expect(useDashboardStateStore.getState().dashboardIsSaving).toBe(true);
     });
 
     test('posts dashboard data with serialized positions on save', () => {
@@ -192,21 +176,20 @@ describe('dashboardState actions', () => {
           id,
           SAVE_TYPE_OVERWRITE,
         );
+        useDashboardStateStore.setState({
+          overwriteConfirmMetadata: undefined,
+        });
         thunk(dispatch, getState);
         expect(getStub.mock.calls.length).toBe(1);
         expect(postStub.mock.calls.length).toBe(0);
         await waitFor(() =>
           expect(
-            dispatch.mock.calls.some(
-              call => call[0]?.type === SET_OVERRIDE_CONFIRM,
-            ),
-          ).toBe(true),
-        );
-        const overrideConfirmCall = dispatch.mock.calls.find(
-          call => call[0]?.type === SET_OVERRIDE_CONFIRM,
+            useDashboardStateStore.getState().overwriteConfirmMetadata,
+          ).toBeDefined(),
         );
         expect(
-          overrideConfirmCall?.[0].overwriteConfirmMetadata.dashboardId,
+          useDashboardStateStore.getState().overwriteConfirmMetadata
+            ?.dashboardId,
         ).toBe(id);
       });
 
@@ -412,13 +395,14 @@ describe('dashboardState actions', () => {
     );
   });
 
-  test('onRefresh dispatches success and filters refresh by default', async () => {
+  test('onRefresh marks refresh complete and triggers filters refresh by default', async () => {
     const { getState } = setup({
       dashboardInfo: {
         metadata: {},
         common: { conf: { SUPERSET_WEBSERVER_TIMEOUT: 60 } },
       },
     });
+    useDashboardStateStore.setState({ isFiltersRefreshing: false });
     const dispatched: { type: string }[] = [];
     const dispatch = (action: unknown): unknown => {
       if (typeof action === 'function') {
@@ -430,13 +414,9 @@ describe('dashboardState actions', () => {
 
     await onRefresh([1], true, 0, 10)(dispatch as never);
 
-    expect(dispatched.map(action => action.type)).toEqual(
-      expect.arrayContaining([
-        ON_REFRESH,
-        ON_REFRESH_SUCCESS,
-        ON_FILTERS_REFRESH,
-      ]),
-    );
+    expect(dispatched.map(action => action.type)).toContain(ON_REFRESH);
+    expect(useDashboardStateStore.getState().isRefreshing).toBe(false);
+    expect(useDashboardStateStore.getState().isFiltersRefreshing).toBe(true);
   });
 
   test('onRefresh skips filter refresh when requested', async () => {
@@ -446,6 +426,7 @@ describe('dashboardState actions', () => {
         common: { conf: { SUPERSET_WEBSERVER_TIMEOUT: 60 } },
       },
     });
+    useDashboardStateStore.setState({ isFiltersRefreshing: false });
     const dispatched: { type: string }[] = [];
     const dispatch = (action: unknown): unknown => {
       if (typeof action === 'function') {
@@ -457,11 +438,9 @@ describe('dashboardState actions', () => {
 
     await onRefresh([1], true, 0, 10, true)(dispatch as never);
 
-    const dispatchedTypes = dispatched.map(action => action.type);
-    expect(dispatchedTypes).toEqual(
-      expect.arrayContaining([ON_REFRESH, ON_REFRESH_SUCCESS]),
-    );
-    expect(dispatchedTypes).not.toContain(ON_FILTERS_REFRESH);
+    expect(dispatched.map(action => action.type)).toContain(ON_REFRESH);
+    expect(useDashboardStateStore.getState().isRefreshing).toBe(false);
+    expect(useDashboardStateStore.getState().isFiltersRefreshing).toBe(false);
   });
 
   test('onRefresh skips ON_REFRESH and filters refresh for lazy-loaded tabs', async () => {
@@ -471,6 +450,7 @@ describe('dashboardState actions', () => {
         common: { conf: { SUPERSET_WEBSERVER_TIMEOUT: 60 } },
       },
     });
+    useDashboardStateStore.setState({ isFiltersRefreshing: false });
     const dispatched: { type: string }[] = [];
     const dispatch = (action: unknown): unknown => {
       if (typeof action === 'function') {
@@ -482,383 +462,8 @@ describe('dashboardState actions', () => {
 
     await onRefresh([1], true, 0, 10, false, true)(dispatch as never);
 
-    const dispatchedTypes = dispatched.map(action => action.type);
-    expect(dispatchedTypes).toContain(ON_REFRESH_SUCCESS);
-    expect(dispatchedTypes).not.toContain(ON_REFRESH);
-    expect(dispatchedTypes).not.toContain(ON_FILTERS_REFRESH);
-  });
-
-  test('setActiveTab restores multi-depth nested inactive tabs', () => {
-    const { getState, dispatch } = setup();
-    useDashboardStateStore.setState({
-      activeTabs: [],
-      inactiveTabs: ['TAB-B', 'TAB-C'],
-    });
-    useDashboardLayoutStore.getState().setLayout({
-      'TAB-A': { id: 'TAB-A', type: 'TAB', parents: ['ROOT_ID', 'TABS-1'] },
-      'TAB-B': {
-        id: 'TAB-B',
-        type: 'TAB',
-        parents: ['ROOT_ID', 'TABS-1', 'TAB-A', 'TABS-2'],
-      },
-      'TAB-C': {
-        id: 'TAB-C',
-        type: 'TAB',
-        parents: ['ROOT_ID', 'TABS-1', 'TAB-A', 'TABS-2', 'TAB-B', 'TABS-3'],
-      },
-    } as unknown as DashboardLayout);
-
-    setActiveTab('TAB-A')(dispatch, getState);
-
-    expect(dispatch).toHaveBeenCalledWith(
-      expect.objectContaining({
-        type: SET_ACTIVE_TAB,
-        activeTabs: ['TAB-A', 'TAB-B', 'TAB-C'],
-      }),
-    );
-  });
-
-  // eslint-disable-next-line no-restricted-globals -- TODO: Migrate from describe blocks
-  describe('fetchFaveStar race condition', () => {
-    test('dispatches TOGGLE_FAVE_STAR when the dashboard ID still matches', async () => {
-      const id = 123;
-      const { getState, dispatch } = setup({
-        dashboardInfo: {
-          id,
-          metadata: { color_scheme: 'supersetColors' },
-        },
-      });
-
-      getStub.mockRestore();
-      getStub = jest.spyOn(SupersetClient, 'get').mockResolvedValue({
-        json: { result: [{ value: true }] },
-      } as unknown as JsonResponse);
-
-      await fetchFaveStar(id)(dispatch, getState);
-
-      expect(dispatch).toHaveBeenCalledTimes(1);
-      expect(dispatch).toHaveBeenCalledWith({
-        type: TOGGLE_FAVE_STAR,
-        isStarred: true,
-      });
-    });
-
-    test('does NOT dispatch when the dashboard ID changed before the response resolved', async () => {
-      const requestedId = 123;
-      // User navigated to a different dashboard by the time the response comes back
-      const { getState, dispatch } = setup({
-        dashboardInfo: {
-          id: 456,
-          metadata: { color_scheme: 'supersetColors' },
-        },
-      });
-
-      getStub.mockRestore();
-      getStub = jest.spyOn(SupersetClient, 'get').mockResolvedValue({
-        json: { result: [{ value: true }] },
-      } as unknown as JsonResponse);
-
-      await fetchFaveStar(requestedId)(dispatch, getState);
-
-      expect(dispatch).not.toHaveBeenCalled();
-    });
-
-    test('dispatches a danger toast on error when the dashboard ID still matches', async () => {
-      const id = 123;
-      const { getState, dispatch } = setup({
-        dashboardInfo: {
-          id,
-          metadata: { color_scheme: 'supersetColors' },
-        },
-      });
-
-      getStub.mockRestore();
-      getStub = jest
-        .spyOn(SupersetClient, 'get')
-        .mockRejectedValue(new Error('network'));
-
-      await fetchFaveStar(id)(dispatch, getState);
-
-      expect(dispatch).toHaveBeenCalledTimes(1);
-      expect(dispatch.mock.calls[0][0]).toEqual(
-        expect.objectContaining({
-          type: ADD_TOAST,
-          payload: expect.objectContaining({
-            toastType: ToastType.Danger,
-          }),
-        }),
-      );
-    });
-
-    test('does NOT dispatch a danger toast on error when the dashboard ID changed', async () => {
-      const requestedId = 123;
-      const { getState, dispatch } = setup({
-        dashboardInfo: {
-          id: 456,
-          metadata: { color_scheme: 'supersetColors' },
-        },
-      });
-
-      getStub.mockRestore();
-      getStub = jest
-        .spyOn(SupersetClient, 'get')
-        .mockRejectedValue(new Error('network'));
-
-      await fetchFaveStar(requestedId)(dispatch, getState);
-
-      expect(dispatch).not.toHaveBeenCalled();
-    });
-  });
-
-  // eslint-disable-next-line no-restricted-globals -- TODO: Migrate from describe blocks
-  describe('saveFaveStar race condition', () => {
-    let deleteStub: jest.SpyInstance;
-
-    beforeEach(() => {
-      deleteStub = jest
-        .spyOn(SupersetClient, 'delete')
-        .mockResolvedValue({} as unknown as JsonResponse);
-    });
-
-    afterEach(() => {
-      deleteStub.mockRestore();
-    });
-
-    test('dispatches TOGGLE_FAVE_STAR when the dashboard ID still matches (starring)', async () => {
-      const id = 123;
-      const { getState, dispatch } = setup({
-        dashboardInfo: {
-          id,
-          metadata: { color_scheme: 'supersetColors' },
-        },
-      });
-
-      postStub.mockRestore();
-      postStub = jest
-        .spyOn(SupersetClient, 'post')
-        .mockResolvedValue({} as unknown as JsonResponse);
-
-      await saveFaveStar(id, false)(dispatch, getState);
-
-      expect(postStub).toHaveBeenCalledTimes(1);
-      expect(dispatch).toHaveBeenCalledTimes(1);
-      expect(dispatch).toHaveBeenCalledWith({
-        type: TOGGLE_FAVE_STAR,
-        isStarred: true,
-      });
-    });
-
-    test('dispatches TOGGLE_FAVE_STAR when the dashboard ID still matches (unstarring)', async () => {
-      const id = 123;
-      const { getState, dispatch } = setup({
-        dashboardInfo: {
-          id,
-          metadata: { color_scheme: 'supersetColors' },
-        },
-      });
-
-      await saveFaveStar(id, true)(dispatch, getState);
-
-      expect(deleteStub).toHaveBeenCalledTimes(1);
-      expect(dispatch).toHaveBeenCalledTimes(1);
-      expect(dispatch).toHaveBeenCalledWith({
-        type: TOGGLE_FAVE_STAR,
-        isStarred: false,
-      });
-    });
-
-    test('does NOT dispatch when the dashboard ID changed before the response resolved', async () => {
-      const requestedId = 123;
-      // User navigated to a different dashboard by the time the response comes back
-      const { getState, dispatch } = setup({
-        dashboardInfo: {
-          id: 456,
-          metadata: { color_scheme: 'supersetColors' },
-        },
-      });
-
-      postStub.mockRestore();
-      postStub = jest
-        .spyOn(SupersetClient, 'post')
-        .mockResolvedValue({} as unknown as JsonResponse);
-
-      await saveFaveStar(requestedId, false)(dispatch, getState);
-
-      expect(postStub).toHaveBeenCalledTimes(1);
-      expect(dispatch).not.toHaveBeenCalled();
-    });
-
-    test('dispatches a danger toast on error when the dashboard ID still matches', async () => {
-      const id = 123;
-      const { getState, dispatch } = setup({
-        dashboardInfo: {
-          id,
-          metadata: { color_scheme: 'supersetColors' },
-        },
-      });
-
-      postStub.mockRestore();
-      postStub = jest
-        .spyOn(SupersetClient, 'post')
-        .mockRejectedValue(new Error('network'));
-
-      await saveFaveStar(id, false)(dispatch, getState);
-
-      expect(dispatch).toHaveBeenCalledTimes(1);
-      expect(dispatch.mock.calls[0][0]).toEqual(
-        expect.objectContaining({
-          type: ADD_TOAST,
-          payload: expect.objectContaining({
-            toastType: ToastType.Danger,
-          }),
-        }),
-      );
-    });
-
-    test('does NOT dispatch a danger toast on error when the dashboard ID changed', async () => {
-      const requestedId = 123;
-      const { getState, dispatch } = setup({
-        dashboardInfo: {
-          id: 456,
-          metadata: { color_scheme: 'supersetColors' },
-        },
-      });
-
-      postStub.mockRestore();
-      postStub = jest
-        .spyOn(SupersetClient, 'post')
-        .mockRejectedValue(new Error('network'));
-
-      await saveFaveStar(requestedId, false)(dispatch, getState);
-
-      expect(dispatch).not.toHaveBeenCalled();
-    });
-  });
-
-  // eslint-disable-next-line no-restricted-globals -- TODO: Migrate from describe blocks
-  describe('savePublished race condition', () => {
-    test('dispatches success toast and TOGGLE_PUBLISHED when the dashboard ID still matches', async () => {
-      const id = 123;
-      const { getState, dispatch } = setup({
-        dashboardInfo: {
-          id,
-          metadata: { color_scheme: 'supersetColors' },
-        },
-      });
-
-      putStub.mockRestore();
-      putStub = jest
-        .spyOn(SupersetClient, 'put')
-        .mockResolvedValue({} as unknown as JsonResponse);
-
-      await savePublished(id, true)(dispatch, getState);
-
-      expect(dispatch).toHaveBeenCalledTimes(2);
-      expect(dispatch.mock.calls[0][0]).toEqual(
-        expect.objectContaining({
-          type: ADD_TOAST,
-          payload: expect.objectContaining({
-            toastType: ToastType.Success,
-          }),
-        }),
-      );
-      expect(dispatch).toHaveBeenCalledWith({
-        type: TOGGLE_PUBLISHED,
-        isPublished: true,
-      });
-    });
-
-    test('rebaselines the discard snapshot on publish so a later discard stays in-place', async () => {
-      const id = 123;
-      const { getState, dispatch } = setup({
-        dashboardInfo: { id, metadata: {} },
-      });
-      queryClient.setQueryData(dashboardKeys.hydrationPayload(id), {
-        dashboardInfo: { id },
-        dashboardLayout: { present: {} },
-        sliceEntities: { slices: {} },
-        zustandStateSeed: { isPublished: false },
-      });
-      putStub.mockRestore();
-      putStub = jest
-        .spyOn(SupersetClient, 'put')
-        .mockResolvedValue({} as unknown as JsonResponse);
-
-      await savePublished(id, true)(dispatch, getState);
-
-      const snapshot = queryClient.getQueryData(
-        dashboardKeys.hydrationPayload(id),
-      ) as { zustandStateSeed: { isPublished: boolean } };
-      // Rebaselined in place (not dropped); the persisted publish state survives discard.
-      expect(snapshot).toBeDefined();
-      expect(snapshot.zustandStateSeed.isPublished).toBe(true);
-    });
-
-    test('does NOT dispatch when the dashboard ID changed before the response resolved', async () => {
-      const requestedId = 123;
-      // User navigated to a different dashboard by the time the response comes back
-      const { getState, dispatch } = setup({
-        dashboardInfo: {
-          id: 456,
-          metadata: { color_scheme: 'supersetColors' },
-        },
-      });
-
-      putStub.mockRestore();
-      putStub = jest
-        .spyOn(SupersetClient, 'put')
-        .mockResolvedValue({} as unknown as JsonResponse);
-
-      await savePublished(requestedId, true)(dispatch, getState);
-
-      expect(putStub).toHaveBeenCalledTimes(1);
-      expect(dispatch).not.toHaveBeenCalled();
-    });
-
-    test('dispatches a danger toast on error when the dashboard ID still matches', async () => {
-      const id = 123;
-      const { getState, dispatch } = setup({
-        dashboardInfo: {
-          id,
-          metadata: { color_scheme: 'supersetColors' },
-        },
-      });
-
-      putStub.mockRestore();
-      putStub = jest
-        .spyOn(SupersetClient, 'put')
-        .mockRejectedValue(new Error('forbidden'));
-
-      await savePublished(id, true)(dispatch, getState);
-
-      expect(dispatch).toHaveBeenCalledTimes(1);
-      expect(dispatch.mock.calls[0][0]).toEqual(
-        expect.objectContaining({
-          type: ADD_TOAST,
-          payload: expect.objectContaining({
-            toastType: ToastType.Danger,
-          }),
-        }),
-      );
-    });
-
-    test('does NOT dispatch a danger toast on error when the dashboard ID changed', async () => {
-      const requestedId = 123;
-      const { getState, dispatch } = setup({
-        dashboardInfo: {
-          id: 456,
-          metadata: { color_scheme: 'supersetColors' },
-        },
-      });
-
-      putStub.mockRestore();
-      putStub = jest
-        .spyOn(SupersetClient, 'put')
-        .mockRejectedValue(new Error('forbidden'));
-
-      await savePublished(requestedId, true)(dispatch, getState);
-
-      expect(dispatch).not.toHaveBeenCalled();
-    });
+    expect(dispatched.map(action => action.type)).not.toContain(ON_REFRESH);
+    expect(useDashboardStateStore.getState().isRefreshing).toBe(false);
+    expect(useDashboardStateStore.getState().isFiltersRefreshing).toBe(false);
   });
 });

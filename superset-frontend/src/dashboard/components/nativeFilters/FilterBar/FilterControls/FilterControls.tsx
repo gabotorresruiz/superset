@@ -49,7 +49,6 @@ import {
   InPortal,
   OutPortal,
 } from 'react-reverse-portal';
-import { useDispatch } from 'react-redux';
 import {
   useDashboardHasTabs,
   useSelectFiltersInScope,
@@ -65,7 +64,6 @@ import {
 import { Icons } from '@superset-ui/core/components/Icons';
 import { useChartIds } from 'src/dashboard/util/charts/useChartIds';
 import { useChartLayoutItems } from 'src/dashboard/util/useChartLayoutItems';
-import { setPendingChartCustomization } from 'src/dashboard/actions/chartCustomizationActions';
 import {
   getInitialDataMask,
   useDataMaskStore,
@@ -158,7 +156,6 @@ const FilterControls: FC<FilterControlsProps> = ({
   hideHeader = false,
 }) => {
   const theme = useTheme();
-  const dispatch = useDispatch();
   const filterBarOrientation = useDashboardInfoStore(
     s => s.dashboardInfo.filterBarOrientation,
   );
@@ -242,26 +239,24 @@ const FilterControls: FC<FilterControlsProps> = ({
       const columnValue = dataMask.ownState?.column;
       const existingTarget = customizationItem.targets?.[0] || {};
 
-      dispatch(
-        setPendingChartCustomization({
-          ...customizationItem,
-          targets: [
-            {
-              ...existingTarget,
-              ...(columnValue && {
-                column: {
-                  ...existingTarget.column,
-                  name: columnValue,
-                },
-              }),
-            },
-          ] as [Partial<NativeFilterTarget>],
-        }),
-      );
+      useDashboardInfoStore.getState().setPendingChartCustomization({
+        ...customizationItem,
+        targets: [
+          {
+            ...existingTarget,
+            ...(columnValue && {
+              column: {
+                ...existingTarget.column,
+                name: columnValue,
+              },
+            }),
+          },
+        ] as [Partial<NativeFilterTarget>],
+      });
 
       onPendingCustomizationDataMaskChange(customizationItem.id, dataMask);
     },
-    [dispatch, onPendingCustomizationDataMaskChange],
+    [onPendingCustomizationDataMaskChange],
   );
 
   const renderer = useCallback(

@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useSelector, useDispatch } from 'react-redux';
+import { useSelector } from 'react-redux';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { URL_PARAMS } from 'src/constants';
 import { getUrlParam } from 'src/utils/urlUtils';
@@ -31,11 +31,8 @@ import {
   useNativeFiltersDataMask,
 } from '../nativeFilters/FilterBar/state';
 import { useChartCustomizations } from '../nativeFilters/state';
-import { toggleNativeFiltersBar } from '../../actions/dashboardState';
 
 export const useNativeFilters = () => {
-  const dispatch = useDispatch();
-
   const [isInitialized, setIsInitialized] = useState(false);
 
   const showNativeFilters = useSelector<RootState, boolean>(
@@ -84,9 +81,9 @@ export const useNativeFilters = () => {
   const toggleDashboardFiltersOpen = useCallback(
     (visible?: boolean) => {
       const newState = visible ?? !dashboardFiltersOpen;
-      dispatch(toggleNativeFiltersBar(newState));
+      useDashboardStateStore.getState().setNativeFiltersBarOpen(newState);
     },
-    [dispatch, dashboardFiltersOpen],
+    [dashboardFiltersOpen],
   );
 
   useEffect(() => {
@@ -98,12 +95,11 @@ export const useNativeFilters = () => {
         chartCustomizations.length === 0 &&
         nativeFiltersEnabled)
     ) {
-      dispatch(toggleNativeFiltersBar(false));
+      useDashboardStateStore.getState().setNativeFiltersBarOpen(false);
     } else {
-      dispatch(toggleNativeFiltersBar(true));
+      useDashboardStateStore.getState().setNativeFiltersBarOpen(true);
     }
   }, [
-    dispatch,
     filterValues.length,
     chartCustomizations.length,
     expandFilters,

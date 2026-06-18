@@ -21,9 +21,21 @@ import fetchMock from 'fetch-mock';
 import { waitFor, render, screen, within } from 'spec/helpers/testing-library';
 import userEvent from '@testing-library/user-event';
 import { DashboardInfo, FilterBarOrientation } from 'src/dashboard/types';
-import * as mockedMessageActions from 'src/components/MessageToasts/actions';
 import { useDashboardInfoStore } from 'src/dashboard/stores';
 import FilterBarSettings from '.';
+
+const mockAddDangerToast = jest.fn();
+jest.mock('src/components/MessageToasts/withToasts', () => {
+  const actual = jest.requireActual('src/components/MessageToasts/withToasts');
+  return {
+    __esModule: true,
+    ...actual,
+    useToasts: () => ({
+      addSuccessToast: jest.fn(),
+      addDangerToast: mockAddDangerToast,
+    }),
+  };
+});
 
 const initialState: { dashboardInfo: DashboardInfo } = {
   dashboardInfo: {
@@ -77,6 +89,7 @@ const setup = (dashboardInfoOverride: Partial<DashboardInfo> = {}) => {
 
 beforeEach(() => {
   fetchMock.clearHistory().removeRoutes();
+  mockAddDangerToast.mockClear();
 });
 
 test('Dropdown trigger renders', async () => {
@@ -229,8 +242,6 @@ test('On failed request, restore previous selection', async () => {
     () => new Response('', { status: 400, statusText: 'Bad Request' }),
   );
 
-  const dangerToastSpy = jest.spyOn(mockedMessageActions, 'addDangerToast');
-
   await setup();
   const SettingsIcon = screen.getByRole('img', { name: /setting/i });
 
@@ -256,7 +267,7 @@ test('On failed request, restore previous selection', async () => {
 
   // Verify error toast
   await waitFor(() => {
-    expect(dangerToastSpy).toHaveBeenCalledWith(
+    expect(mockAddDangerToast).toHaveBeenCalledWith(
       'Sorry, there was an error saving this dashboard: Bad Request',
     );
   });

@@ -52,8 +52,10 @@ import {
   DASHBOARD_ROOT_DEPTH,
 } from 'src/dashboard/util/constants';
 import findTabIndexByComponentId from 'src/dashboard/util/findTabIndexByComponentId';
-import { setInScopeStatusOfFilters } from 'src/dashboard/actions/nativeFilters';
-import { setInScopeStatusOfCustomizations } from 'src/dashboard/actions/chartCustomizationActions';
+import {
+  setInScopeStatusOfFilters,
+  setInScopeStatusOfCustomizations,
+} from 'src/dashboard/util/inScopeStatus';
 import { useChartIds } from 'src/dashboard/util/charts/useChartIds';
 import {
   applyDashboardLabelsColorOnLoad,
@@ -215,7 +217,7 @@ const DashboardContainer: FC<DashboardContainerProps> = ({ topLevelTabs }) => {
 
     if (!isEqual(scopes, prevFilterScopesRef.current)) {
       prevFilterScopesRef.current = scopes;
-      dispatch(setInScopeStatusOfFilters(scopes));
+      setInScopeStatusOfFilters(scopes);
     }
   }, [chartIds, filterItems, chartLayoutItems, dispatch]);
 
@@ -243,7 +245,7 @@ const DashboardContainer: FC<DashboardContainerProps> = ({ topLevelTabs }) => {
 
     if (!isEqual(scopes, prevCustomizationScopesRef.current)) {
       prevCustomizationScopesRef.current = scopes;
-      dispatch(setInScopeStatusOfCustomizations(scopes));
+      setInScopeStatusOfCustomizations(scopes);
     }
   }, [chartIds, chartCustomizations, chartLayoutItems, dispatch]);
 

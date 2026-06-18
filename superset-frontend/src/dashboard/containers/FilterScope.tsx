@@ -21,10 +21,12 @@ import { bindActionCreators } from 'redux';
 import { useDispatch, useSelector } from 'react-redux';
 
 import { updateDashboardFiltersScope } from '../actions/dashboardFilters';
-import { setUnsavedChanges } from '../actions/dashboardState';
 import FilterScopeSelector from '../components/filterscope/FilterScopeSelector';
 import { RootState } from 'src/dashboard/types';
-import { useDashboardLayoutStore } from 'src/dashboard/stores';
+import {
+  useDashboardLayoutStore,
+  useDashboardStateStore,
+} from 'src/dashboard/stores';
 
 interface FilterScopeContainerProps {
   onCloseModal: () => void;
@@ -43,18 +45,19 @@ export default function FilterScopeContainer({
       bindActionCreators(
         {
           updateDashboardFiltersScope,
-          setUnsavedChanges,
         },
         dispatch,
       ),
     [dispatch],
   );
+  const { setHasUnsavedChanges } = useDashboardStateStore.getState();
 
   return (
     <FilterScopeSelector
       dashboardFilters={dashboardFilters}
       layout={layout}
       onCloseModal={onCloseModal}
+      setUnsavedChanges={setHasUnsavedChanges}
       {...actions}
     />
   );

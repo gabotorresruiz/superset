@@ -26,18 +26,18 @@ import {
   memo,
 } from 'react';
 
-import { useDispatch, useSelector } from 'react-redux';
+import { useSelector } from 'react-redux';
 import { uniqWith } from 'lodash';
 import cx from 'classnames';
 import { t } from '@apache-superset/core/translation';
 import { usePrevious } from '@superset-ui/core';
 import { styled } from '@apache-superset/core/theme';
 import { Icons } from '@superset-ui/core/components/Icons';
-import { setDirectPathToChild } from 'src/dashboard/actions/dashboardState';
 import { useChartLayoutItems } from 'src/dashboard/util/useChartLayoutItems';
 import {
   useNativeFiltersStore,
   useDashboardInfoStore,
+  useDashboardStateStore,
 } from 'src/dashboard/stores';
 import { useDataMaskStore } from 'src/dataMask/useDataMaskStore';
 import { Badge } from '@superset-ui/core/components';
@@ -106,7 +106,6 @@ const sortByStatus = (indicators: Indicator[]): Indicator[] => {
 const indicatorsInitialState: Indicator[] = [];
 
 export const FiltersBadge = ({ chartId }: FiltersBadgeProps) => {
-  const dispatch = useDispatch();
   const isAutoRefreshing = useIsAutoRefreshing();
   const datasources = useSelector<RootState, RootState['datasources']>(
     state => state.datasources,
@@ -133,12 +132,9 @@ export const FiltersBadge = ({ chartId }: FiltersBadgeProps) => {
   const popoverContentRef = useRef<HTMLDivElement>(null);
   const popoverTriggerRef = useRef<HTMLDivElement>(null);
 
-  const onHighlightFilterSource = useCallback(
-    (path: string[]) => {
-      dispatch(setDirectPathToChild(path));
-    },
-    [dispatch],
-  );
+  const onHighlightFilterSource = useCallback((path: string[]) => {
+    useDashboardStateStore.getState().setDirectPathToChild(path);
+  }, []);
 
   const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     if (event.key === 'Enter') {

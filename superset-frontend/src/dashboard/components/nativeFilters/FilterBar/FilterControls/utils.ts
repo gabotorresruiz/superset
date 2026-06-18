@@ -17,36 +17,29 @@
  * under the License.
  */
 import { debounce } from 'lodash';
-import {
-  setFocusedNativeFilter,
-  unsetFocusedNativeFilter,
-  setHoveredNativeFilter,
-  unsetHoveredNativeFilter,
-  setHoveredChartCustomization,
-  unsetHoveredChartCustomization,
-} from 'src/dashboard/actions/nativeFilters';
+import { useNativeFiltersStore } from 'src/dashboard/stores';
 import { Constants } from '@superset-ui/core/components';
 
 export const dispatchHoverAction = debounce((id?: string) => {
   if (id) {
-    setHoveredNativeFilter(id);
+    useNativeFiltersStore.getState().setHoveredFilter(id);
   } else {
-    unsetHoveredNativeFilter();
+    useNativeFiltersStore.getState().unsetHoveredFilter();
   }
 }, Constants.FAST_DEBOUNCE);
 
 export const dispatchFocusAction = debounce((id?: string) => {
   if (id) {
-    setFocusedNativeFilter(id);
+    useNativeFiltersStore.getState().setFocusedFilter(id);
   } else {
-    unsetFocusedNativeFilter();
+    useNativeFiltersStore.getState().unsetFocusedFilter();
   }
 }, Constants.FAST_DEBOUNCE);
 
 export const dispatchChartCustomizationHoverAction = debounce((id?: string) => {
   if (id) {
-    setHoveredChartCustomization(id);
+    useNativeFiltersStore.getState().setHoveredChartCustomization(id);
   } else {
-    unsetHoveredChartCustomization();
+    useNativeFiltersStore.getState().unsetHoveredChartCustomization();
   }
 }, Constants.FAST_DEBOUNCE);

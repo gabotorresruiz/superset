@@ -43,10 +43,10 @@ import {
 } from '@superset-ui/core';
 import { styled, SupersetTheme } from '@apache-superset/core/theme';
 import { useTheme } from '@emotion/react';
-import { useDispatch } from 'react-redux';
 import {
   useDashboardStateStore,
   useDashboardInfoStore,
+  useNativeFiltersStore,
 } from 'src/dashboard/stores';
 import { isEqual, isEqualWith } from 'lodash';
 import { getChartDataRequest } from 'src/components/Chart/chartAction';
@@ -54,14 +54,6 @@ import { ErrorAlert, ErrorMessageWithStackTrace } from 'src/components';
 import { Loading, Constants, Flex } from '@superset-ui/core/components';
 import { waitForAsyncData } from 'src/middleware/asyncEvent';
 import { FilterBarOrientation } from 'src/dashboard/types';
-import {
-  onFiltersRefreshSuccess,
-  setDirectPathToChild,
-} from 'src/dashboard/actions/dashboardState';
-import {
-  setHoveredChartCustomization,
-  unsetHoveredChartCustomization,
-} from 'src/dashboard/actions/nativeFilters';
 import { RESPONSIVE_WIDTH } from 'src/filters/components/common';
 import { dispatchHoverAction, dispatchFocusAction } from './utils';
 import { FilterControlProps } from './types';
@@ -183,7 +175,6 @@ const FilterValue: FC<FilterValueProps> = ({
   const hasDataSource = !!datasetId;
   const [isLoading, setIsLoading] = useState<boolean>(hasDataSource);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const dispatch = useDispatch();
 
   const { outlinedFilterId, lastUpdated } = useFilterOutlined();
 
@@ -191,9 +182,9 @@ const FilterValue: FC<FilterValueProps> = ({
     setIsRefreshing(false);
     setIsLoading(false);
     if (shouldRefresh) {
-      dispatch(onFiltersRefreshSuccess());
+      useDashboardStateStore.getState().setIsFiltersRefreshing(false);
     }
-  }, [dispatch, shouldRefresh]);
+  }, [shouldRefresh]);
 
   useEffect(() => {
     setHasDepsFilterValue(hasDeps);
@@ -372,7 +363,7 @@ const FilterValue: FC<FilterValueProps> = ({
     if (outlinedFilterId !== id) {
       dispatchFocusAction(id);
     }
-  }, [dispatch, id, outlinedFilterId, isCustomization]);
+  }, [id, outlinedFilterId, isCustomization]);
 
   const unsetFocusedFilter = useCallback(() => {
     if (isCustomization) {
@@ -380,25 +371,25 @@ const FilterValue: FC<FilterValueProps> = ({
     }
     dispatchFocusAction();
     if (outlinedFilterId === id) {
-      dispatch(setDirectPathToChild([]));
+      useDashboardStateStore.getState().setDirectPathToChild([]);
     }
-  }, [dispatch, id, outlinedFilterId, isCustomization]);
+  }, [id, outlinedFilterId, isCustomization]);
 
   const setHoveredFilter = useCallback(() => {
     if (isCustomization) {
-      setHoveredChartCustomization(id);
+      useNativeFiltersStore.getState().setHoveredChartCustomization(id);
     } else {
       dispatchHoverAction(id);
     }
-  }, [dispatch, id, isCustomization]);
+  }, [id, isCustomization]);
 
   const unsetHoveredFilter = useCallback(() => {
     if (isCustomization) {
-      unsetHoveredChartCustomization();
+      useNativeFiltersStore.getState().unsetHoveredChartCustomization();
     } else {
       dispatchHoverAction();
     }
-  }, [dispatch, isCustomization]);
+  }, [isCustomization]);
 
   const hooks = useMemo(
     () => ({

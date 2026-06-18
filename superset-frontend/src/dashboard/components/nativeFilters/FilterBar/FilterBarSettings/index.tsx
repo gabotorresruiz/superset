@@ -25,9 +25,9 @@ import { MenuProps } from '@superset-ui/core/components/Menu';
 import { FilterBarOrientation } from 'src/dashboard/types';
 import { useDashboardInfoStore } from 'src/dashboard/stores';
 import {
-  saveFilterBarOrientation,
-  saveCrossFiltersSetting,
-} from 'src/dashboard/actions/dashboardInfo';
+  useSaveFilterBarOrientation,
+  useSaveCrossFiltersSetting,
+} from 'src/dashboard/queries';
 import { Icons } from '@superset-ui/core/components/Icons';
 import { Button, Checkbox, Dropdown } from '@superset-ui/core/components';
 import { Space } from '@superset-ui/core/components/Space';
@@ -85,14 +85,18 @@ const FilterBarSettings = () => {
       dashboardId,
     });
 
+  const { mutate: saveCrossFiltersSetting } = useSaveCrossFiltersSetting();
+  const { mutateAsync: saveFilterBarOrientation } =
+    useSaveFilterBarOrientation();
+
   const updateCrossFiltersSetting = useCallback(
-    async (isEnabled: boolean) => {
+    (isEnabled: boolean) => {
       if (!isEnabled) {
         dispatch(clearDataMaskState());
       }
-      await dispatch(saveCrossFiltersSetting(isEnabled));
+      saveCrossFiltersSetting(isEnabled);
     },
-    [dispatch],
+    [dispatch, saveCrossFiltersSetting],
   );
 
   const toggleCrossFiltering = useCallback(() => {
@@ -108,14 +112,14 @@ const FilterBarSettings = () => {
       // set displayed selection in local state for immediate visual response after clicking
       setSelectedFilterBarOrientation(orientation);
       try {
-        // save selection in Redux and backend
-        await dispatch(saveFilterBarOrientation(orientation));
+        // save selection in the store and backend
+        await saveFilterBarOrientation(orientation);
       } catch {
         // revert local state in case of error when saving
         setSelectedFilterBarOrientation(filterBarOrientation);
       }
     },
-    [dispatch, filterBarOrientation],
+    [saveFilterBarOrientation, filterBarOrientation],
   );
 
   const handleClick = useCallback(

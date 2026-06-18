@@ -46,8 +46,10 @@ import {
 import { propertyComparator } from '@superset-ui/core/components/Select/utils';
 import { useDispatch } from 'react-redux';
 import { useDataMaskStore } from 'src/dataMask/useDataMaskStore';
-import { useNativeFiltersStore } from 'src/dashboard/stores';
-import { setPendingChartCustomization } from 'src/dashboard/actions/chartCustomizationActions';
+import {
+  useNativeFiltersStore,
+  useDashboardInfoStore,
+} from 'src/dashboard/stores';
 import { TooltipWithTruncation } from 'src/dashboard/components/nativeFilters/FilterCard/TooltipWithTruncation';
 import { addDangerToast } from 'src/components/MessageToasts/actions';
 import { cachedSupersetGet } from 'src/utils/cachedSupersetGet';
@@ -379,12 +381,10 @@ const GroupByFilterCard: FC<GroupByFilterCardProps> = ({
           ] as [Partial<NativeFilterTarget>])
         : ([{}] as [Partial<NativeFilterTarget>]);
 
-      dispatch(
-        setPendingChartCustomization({
-          ...customizationItem,
-          targets,
-        }),
-      );
+      useDashboardInfoStore.getState().setPendingChartCustomization({
+        ...customizationItem,
+        targets,
+      });
 
       const groupbyValue = columnValue
         ? Array.isArray(columnValue)
@@ -409,13 +409,7 @@ const GroupByFilterCard: FC<GroupByFilterCardProps> = ({
 
       onFilterSelectionChange?.(customizationItem, dataMask);
     },
-    [
-      canSelectMultiple,
-      dataset,
-      dispatch,
-      customizationItem,
-      onFilterSelectionChange,
-    ],
+    [canSelectMultiple, dataset, customizationItem, onFilterSelectionChange],
   );
 
   const filters = useNativeFiltersStore(s => s.filters);

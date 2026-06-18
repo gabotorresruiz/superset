@@ -62,7 +62,12 @@ import {
 import { PageHeaderWithActions } from '@superset-ui/core/components/PageHeaderWithActions';
 import { useUnsavedChangesPrompt } from 'src/hooks/useUnsavedChangesPrompt';
 import { useConfirmModal } from 'src/hooks/useConfirmModal';
-import { useDiscardChanges, useSaveDashboard } from 'src/dashboard/queries';
+import {
+  useDiscardChanges,
+  useSaveDashboard,
+  useFavoriteStatus,
+  useToggleFavorite,
+} from 'src/dashboard/queries';
 import DashboardEmbedModal from '../EmbeddedModal';
 import OverwriteConfirm from '../OverwriteConfirm';
 import {
@@ -72,14 +77,9 @@ import {
 } from '../../../components/MessageToasts/actions';
 import {
   fetchCharts,
-  fetchFaveStar,
   maxUndoHistoryToast,
-  onChange,
   onRefresh,
   saveDashboardRequest,
-  saveFaveStar,
-  savePublished,
-  setUnsavedChanges,
 } from '../../actions/dashboardState';
 import { useStore } from 'zustand';
 import {
@@ -92,7 +92,6 @@ import {
   resetTitleDirtyFlag,
 } from 'src/dashboard/util/flagTitleUnsavedChanges';
 import { logEvent } from '../../../logger/actions';
-import { dashboardInfoChanged } from '../../actions/dashboardInfo';
 import { ChartState } from 'src/explore/types';
 import { useChartIds } from '../../util/charts/useChartIds';
 import { useDashboardMetadataBar } from './useDashboardMetadataBar';
@@ -227,6 +226,9 @@ const Header = (): JSX.Element => {
   const colorNamespace = useDashboardStateStore(s => s.colorNamespace);
   const colorScheme = useDashboardStateStore(s => s.colorScheme);
   const isStarred = useDashboardStateStore(s => s.isStarred);
+  const showFaveStar = Boolean(user?.userId && dashboardInfo?.id);
+  useFavoriteStatus(dashboardInfo.id, showFaveStar);
+  const { mutate: toggleFavorite } = useToggleFavorite(dashboardInfo.id);
   const maxUndoHistoryExceeded = useDashboardStateStore(
     s => s.maxUndoHistoryExceeded,
   );
@@ -279,17 +281,11 @@ const Header = (): JSX.Element => {
           addSuccessToast,
           addDangerToast,
           addWarningToast,
-          setUnsavedChanges,
-          fetchFaveStar,
-          saveFaveStar,
-          savePublished,
           fetchCharts,
-          onChange,
           onSave: saveDashboardRequest,
           maxUndoHistoryToast,
           logEvent,
           onRefresh,
-          dashboardInfoChanged,
         },
         dispatch,
       ),
@@ -324,10 +320,10 @@ const Header = (): JSX.Element => {
   // Track theme changes as unsaved changes, and sync ref when navigating between dashboards
   useEffect(() => {
     if (editMode && dashboardInfo.theme !== previousThemeRef.current) {
-      boundActionCreators.setUnsavedChanges(true);
+      useDashboardStateStore.getState().setHasUnsavedChanges(true);
     }
     previousThemeRef.current = dashboardInfo.theme;
-  }, [dashboardInfo.theme, editMode, boundActionCreators]);
+  }, [dashboardInfo.theme, editMode]);
 
   useEffect(() => {
     if (UNDO_LIMIT - undoLength <= 0 && !didNotifyMaxUndoHistoryToast) {
@@ -360,10 +356,10 @@ const Header = (): JSX.Element => {
     (nextText: string) => {
       if (nextText && dashboardTitle !== nextText) {
         updateDashboardTitle(nextText);
-        boundActionCreators.onChange();
+        useDashboardStateStore.getState().setHasUnsavedChanges(true);
       }
     },
-    [boundActionCreators, dashboardTitle],
+    [dashboardTitle, updateDashboardTitle],
   );
 
   // Enable Save as the title is typed; clear it again if reverted to the saved
@@ -584,7 +580,7 @@ const Header = (): JSX.Element => {
 
   const handleOnPropertiesChange = useCallback(
     (updates: DashboardPropertiesUpdate) => {
-      boundActionCreators.dashboardInfoChanged({
+      useDashboardInfoStore.getState().setDashboardInfo({
         slug: updates.slug,
         description: updates.description,
         metadata: JSON.parse(updates.jsonMetadata || '{}'),
@@ -599,14 +595,14 @@ const Header = (): JSX.Element => {
         ...(updates.theme !== undefined && { theme: updates.theme }),
         css: updates.css,
       });
-      boundActionCreators.setUnsavedChanges(true);
+      useDashboardStateStore.getState().setHasUnsavedChanges(true);
 
       if (updates.title && dashboardTitle !== updates.title) {
         updateDashboardTitle(updates.title);
-        boundActionCreators.onChange();
+        useDashboardStateStore.getState().setHasUnsavedChanges(true);
       }
     },
-    [boundActionCreators, dashboardTitle],
+    [dashboardTitle, updateDashboardTitle],
   );
 
   const handleRefreshChange = useCallback(
@@ -621,8 +617,8 @@ const Header = (): JSX.Element => {
   const handleEnterEditMode = useCallback(() => {
     toggleEditMode();
     clearDashboardHistory();
-    boundActionCreators.setUnsavedChanges(false);
-  }, [toggleEditMode, clearDashboardHistory, boundActionCreators]);
+    useDashboardStateStore.getState().setHasUnsavedChanges(false);
+  }, [toggleEditMode, clearDashboardHistory]);
 
   const NavExtension = extensionsRegistry.get('dashboard.nav.right');
 
@@ -658,17 +654,15 @@ const Header = (): JSX.Element => {
   const faveStarProps = useMemo(
     () => ({
       itemId: dashboardInfo.id,
-      fetchFaveStar: boundActionCreators.fetchFaveStar,
-      saveFaveStar: boundActionCreators.saveFaveStar,
+      // The favorite status is fetched by useFavoriteStatus and mirrored into
+      // the dashboard-state store; FaveStar's own fetch hook is a no-op here.
+      fetchFaveStar: () => {},
+      saveFaveStar: (_id: number, currentIsStarred: boolean) =>
+        toggleFavorite(currentIsStarred),
       isStarred,
       showTooltip: true,
     }),
-    [
-      boundActionCreators.fetchFaveStar,
-      boundActionCreators.saveFaveStar,
-      dashboardInfo.id,
-      isStarred,
-    ],
+    [dashboardInfo.id, isStarred, toggleFavorite],
   );
 
   const titlePanelAdditionalItems = useMemo(
@@ -687,7 +681,6 @@ const Header = (): JSX.Element => {
           key="published-status"
           dashboardId={dashboardInfo.id}
           isPublished={isPublished}
-          savePublished={boundActionCreators.savePublished}
           userCanEdit={userCanEdit}
           userCanSave={userCanSaveAs}
         />
@@ -695,7 +688,6 @@ const Header = (): JSX.Element => {
       !editMode && !isEmbedded && metadataBar,
     ],
     [
-      boundActionCreators.savePublished,
       dashboardInfo.id,
       editMode,
       metadataBar,
@@ -881,7 +873,7 @@ const Header = (): JSX.Element => {
           onOpenChange: setIsDropdownVisible,
         }}
         additionalActionsMenu={menu}
-        showFaveStar={Boolean(user?.userId && dashboardInfo?.id)}
+        showFaveStar={showFaveStar}
         showTitlePanelItems
       />
       {showingPropertiesModal && (

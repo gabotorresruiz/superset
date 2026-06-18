@@ -47,9 +47,11 @@ import {
 import { useDispatch } from 'react-redux';
 import { useQueryClient } from '@tanstack/react-query';
 import { useDashboardQuery, dashboardKeys } from 'src/dashboard/queries';
-import { useDashboardStateStore } from 'src/dashboard/stores';
+import {
+  useDashboardStateStore,
+  useDashboardInfoStore,
+} from 'src/dashboard/stores';
 import { setDashboardMetadata } from 'src/dashboard/actions/dashboardState';
-import { dashboardInfoChanged } from 'src/dashboard/actions/dashboardInfo';
 import { areObjectsEqual } from 'src/reduxUtils';
 import { StandardModal, useModalValidation } from 'src/components/Modal';
 import { validateRefreshFrequency } from '../RefreshFrequency';
@@ -278,7 +280,9 @@ const PropertiesModal = ({
       cssDebounceTimer.current = null;
     }
     if (originalCss.current !== null) {
-      dispatch(dashboardInfoChanged({ css: originalCss.current }));
+      useDashboardInfoStore
+        .getState()
+        .setDashboardInfo({ css: originalCss.current });
       useDashboardStateStore
         .getState()
         .setColorScheme(originalDashboardMetadata.current.color_scheme ?? '');
@@ -634,19 +638,16 @@ const PropertiesModal = ({
 
   // Debounced live CSS preview so changes are reflected on the dashboard
   // without clicking Apply. Called only on user edits, not on data load.
-  const handleCustomCssChange = useCallback(
-    (css: string) => {
-      setCustomCss(css);
-      if (cssDebounceTimer.current) {
-        clearTimeout(cssDebounceTimer.current);
-        cssDebounceTimer.current = null;
-      }
-      cssDebounceTimer.current = setTimeout(() => {
-        dispatch(dashboardInfoChanged({ css }));
-      }, 500);
-    },
-    [dispatch],
-  );
+  const handleCustomCssChange = useCallback((css: string) => {
+    setCustomCss(css);
+    if (cssDebounceTimer.current) {
+      clearTimeout(cssDebounceTimer.current);
+      cssDebounceTimer.current = null;
+    }
+    cssDebounceTimer.current = setTimeout(() => {
+      useDashboardInfoStore.getState().setDashboardInfo({ css });
+    }, 500);
+  }, []);
 
   useEffect(
     () => () => {

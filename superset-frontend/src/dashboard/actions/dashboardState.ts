@@ -31,7 +31,6 @@ import { getCachedSlice } from 'src/dashboard/queries/useSlicesQuery/useSlicesQu
 import { queryClient } from 'src/queries/queryClient';
 import { dashboardKeys } from 'src/dashboard/queries/keys';
 import { rebaselineHydrationSnapshot } from 'src/dashboard/util/rebaselineHydrationDashboardInfo';
-import rison from 'rison';
 import {
   ensureIsArray,
   isFeatureEnabled,
@@ -75,17 +74,9 @@ import { isEqual } from 'lodash';
 import { navigateWithState, navigateTo } from 'src/utils/navigationUtils';
 import type { AnyAction } from 'redux';
 import type { ThunkDispatch } from 'redux-thunk';
-import { ResourceStatus } from 'src/hooks/apiResources/apiResources';
-import type { AgGridChartState } from '@superset-ui/core';
-import type { DashboardChartStates } from 'src/dashboard/types/chartState';
-import {
-  saveChartConfiguration,
-  dashboardInfoChanged,
-  SAVE_CHART_CONFIG_COMPLETE,
-} from './dashboardInfo';
+import { persistChartConfiguration } from 'src/dashboard/queries/useSaveChartConfiguration/useSaveChartConfiguration';
 import { fetchDatasourceMetadata, setDatasources } from './datasources';
 import { updateDirectPathToFilter } from './dashboardFilters';
-import { SET_IN_SCOPE_STATUS_OF_FILTERS } from './nativeFilters';
 import getOverwriteItems from '../util/getOverwriteItems';
 import {
   applyColors,
@@ -97,13 +88,7 @@ import {
   getFreshSharedLabels,
   getDynamicLabelsColors,
 } from '../../utils/colorScheme';
-import type {
-  DashboardLayout,
-  DashboardState,
-  GetState,
-  RootState,
-  Slice,
-} from '../types';
+import type { DashboardState, GetState, RootState, Slice } from '../types';
 
 // Dashboard dispatch type. The base ThunkDispatch handles dashboard-specific
 // thunks. The intersection with a generic function-accepting overload allows
@@ -118,223 +103,9 @@ interface AppDispatch extends ThunkDispatch<RootState, undefined, AnyAction> {
 // Simple action creators
 // ---------------------------------------------------------------------------
 
-export const TOGGLE_NATIVE_FILTERS_BAR = 'TOGGLE_NATIVE_FILTERS_BAR';
-
-interface ToggleNativeFiltersBarAction {
-  type: typeof TOGGLE_NATIVE_FILTERS_BAR;
-  isOpen: boolean;
-}
-
-export function toggleNativeFiltersBar(
-  isOpen: boolean,
-): ToggleNativeFiltersBarAction {
-  useDashboardStateStore.getState().setNativeFiltersBarOpen(isOpen);
-  return { type: TOGGLE_NATIVE_FILTERS_BAR, isOpen };
-}
-
-export const SET_UNSAVED_CHANGES = 'SET_UNSAVED_CHANGES';
-
-interface SetUnsavedChangesAction {
-  type: typeof SET_UNSAVED_CHANGES;
-  payload: { hasUnsavedChanges: boolean };
-}
-
-export function setUnsavedChanges(
-  hasUnsavedChanges: boolean,
-): SetUnsavedChangesAction {
-  useDashboardStateStore.getState().setHasUnsavedChanges(hasUnsavedChanges);
-  return { type: SET_UNSAVED_CHANGES, payload: { hasUnsavedChanges } };
-}
-
-export const ADD_SLICE = 'ADD_SLICE';
-
-interface AddSliceAction {
-  type: typeof ADD_SLICE;
-  slice: Slice;
-}
-
-export function addSlice(slice: Slice): AddSliceAction {
-  useDashboardStateStore.getState().addSliceId(slice.slice_id);
-  return { type: ADD_SLICE, slice };
-}
-
 // Keep the slice in useDashboardSlicesStore so undo can re-add the chart.
 export function removeSlice(sliceId: number): void {
   useDashboardStateStore.getState().removeSliceId(sliceId);
-}
-
-export const TOGGLE_FAVE_STAR = 'TOGGLE_FAVE_STAR';
-
-interface ToggleFaveStarAction {
-  type: typeof TOGGLE_FAVE_STAR;
-  isStarred: boolean;
-}
-
-export function toggleFaveStar(isStarred: boolean): ToggleFaveStarAction {
-  useDashboardStateStore.getState().setIsStarred(isStarred);
-  return { type: TOGGLE_FAVE_STAR, isStarred };
-}
-
-export function fetchFaveStar(id: number) {
-  return function fetchFaveStarThunk(
-    dispatch: AppDispatch,
-    _getState: GetState,
-  ) {
-    return SupersetClient.get({
-      endpoint: `/api/v1/dashboard/favorite_status/?q=${rison.encode([id])}`,
-    })
-      .then(({ json }: { json: JsonObject }) => {
-        // Only update state if this is still the current dashboard
-        // This prevents stale responses from affecting the UI after navigation
-        const currentId = useDashboardInfoStore.getState().dashboardInfo?.id;
-        if (currentId === id) {
-          dispatch(
-            toggleFaveStar(!!(json?.result as JsonObject[])?.[0]?.value),
-          );
-        }
-      })
-      .catch(() => {
-        // Only show error if this is still the current dashboard
-        // This prevents error toasts from appearing for dashboards the user
-        // has already navigated away from (e.g., deleted dashboards)
-        const currentId = useDashboardInfoStore.getState().dashboardInfo?.id;
-        if (currentId === id) {
-          dispatch(
-            addDangerToast(
-              t(
-                'There was an issue fetching the favorite status of this dashboard.',
-              ),
-            ),
-          );
-        }
-      });
-  };
-}
-
-export function saveFaveStar(id: number, isStarred: boolean) {
-  return function saveFaveStarThunk(
-    dispatch: AppDispatch,
-    _getState: GetState,
-  ) {
-    const endpoint = `/api/v1/dashboard/${id}/favorites/`;
-    const apiCall = isStarred
-      ? SupersetClient.delete({
-          endpoint,
-        })
-      : SupersetClient.post({ endpoint });
-
-    return apiCall
-      .then(() => {
-        // Only update state if this is still the current dashboard
-        const currentId = useDashboardInfoStore.getState().dashboardInfo?.id;
-        if (currentId === id) {
-          dispatch(toggleFaveStar(!isStarred));
-        }
-      })
-      .catch(() => {
-        // Only show error if this is still the current dashboard
-        const currentId = useDashboardInfoStore.getState().dashboardInfo?.id;
-        if (currentId === id) {
-          dispatch(
-            addDangerToast(t('There was an issue favoriting this dashboard.')),
-          );
-        }
-      });
-  };
-}
-
-export const TOGGLE_PUBLISHED = 'TOGGLE_PUBLISHED';
-
-interface TogglePublishedAction {
-  type: typeof TOGGLE_PUBLISHED;
-  isPublished: boolean;
-}
-
-export function togglePublished(isPublished: boolean): TogglePublishedAction {
-  useDashboardStateStore.getState().setIsPublished(isPublished);
-  return { type: TOGGLE_PUBLISHED, isPublished };
-}
-
-export function savePublished(
-  id: number,
-  isPublished: boolean,
-): (dispatch: AppDispatch, getState: GetState) => Promise<void> {
-  return function savePublishedThunk(
-    dispatch: AppDispatch,
-    _getState: GetState,
-  ): Promise<void> {
-    return SupersetClient.put({
-      endpoint: `/api/v1/dashboard/${id}`,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        published: isPublished,
-      }),
-    })
-      .then(() => {
-        // Only update state if this is still the current dashboard
-        // This prevents stale responses from affecting the UI after navigation
-        const currentId = useDashboardInfoStore.getState().dashboardInfo?.id;
-        if (currentId === id) {
-          dispatch(
-            addSuccessToast(
-              isPublished
-                ? t('This dashboard is now published')
-                : t('This dashboard is now hidden'),
-            ),
-          );
-          dispatch(togglePublished(isPublished));
-          queryClient.invalidateQueries({ queryKey: dashboardKeys.detail(id) });
-          // Rebaseline the discard-snapshot so the persisted publish change
-          // survives a later in-place discard (published lives in the seed).
-          rebaselineHydrationSnapshot(id);
-        }
-      })
-      .catch(() => {
-        // Only show error if this is still the current dashboard
-        const currentId = useDashboardInfoStore.getState().dashboardInfo?.id;
-        if (currentId === id) {
-          dispatch(
-            addDangerToast(
-              t('You do not have permissions to edit this dashboard.'),
-            ),
-          );
-        }
-      });
-  };
-}
-
-export const TOGGLE_EXPAND_SLICE = 'TOGGLE_EXPAND_SLICE';
-
-interface ToggleExpandSliceAction {
-  type: typeof TOGGLE_EXPAND_SLICE;
-  sliceId: number;
-}
-
-export function toggleExpandSlice(sliceId: number): ToggleExpandSliceAction {
-  useDashboardStateStore.getState().toggleExpandSlice(sliceId);
-  return { type: TOGGLE_EXPAND_SLICE, sliceId };
-}
-
-export const SET_EDIT_MODE = 'SET_EDIT_MODE';
-
-interface SetEditModeAction {
-  type: typeof SET_EDIT_MODE;
-  editMode: boolean;
-}
-
-export function setEditMode(editMode: boolean): SetEditModeAction {
-  return { type: SET_EDIT_MODE, editMode };
-}
-
-export const ON_CHANGE = 'ON_CHANGE';
-
-interface OnChangeAction {
-  type: typeof ON_CHANGE;
-}
-
-export function onChange(): OnChangeAction {
-  useDashboardStateStore.getState().setHasUnsavedChanges(true);
-  return { type: ON_CHANGE };
 }
 
 export const ON_SAVE = 'ON_SAVE';
@@ -349,65 +120,9 @@ export function onSave(lastModifiedTime: number): OnSaveAction {
   return { type: ON_SAVE, lastModifiedTime };
 }
 
-export const SET_REFRESH_FREQUENCY = 'SET_REFRESH_FREQUENCY';
-
-interface SetRefreshFrequencyAction {
-  type: typeof SET_REFRESH_FREQUENCY;
-  refreshFrequency: number;
-  isPersistent: boolean;
-}
-
-export function setRefreshFrequency(
-  refreshFrequency: number,
-  isPersistent = false,
-): SetRefreshFrequencyAction {
-  useDashboardStateStore
-    .getState()
-    .setRefreshFrequency(refreshFrequency, isPersistent);
-  return { type: SET_REFRESH_FREQUENCY, refreshFrequency, isPersistent };
-}
-
 export function saveDashboardRequestSuccess(lastModifiedTime: number): void {
   onSave(lastModifiedTime);
   useDashboardLayoutStore.temporal.getState().clear();
-}
-
-export const SET_OVERRIDE_CONFIRM = 'SET_OVERRIDE_CONFIRM';
-
-interface SetOverrideConfirmAction {
-  type: typeof SET_OVERRIDE_CONFIRM;
-  overwriteConfirmMetadata: DashboardState['overwriteConfirmMetadata'];
-}
-
-export function setOverrideConfirm(
-  overwriteConfirmMetadata: DashboardState['overwriteConfirmMetadata'],
-): SetOverrideConfirmAction {
-  useDashboardStateStore
-    .getState()
-    .setOverwriteConfirmMetadata(overwriteConfirmMetadata);
-  return { type: SET_OVERRIDE_CONFIRM, overwriteConfirmMetadata };
-}
-
-export const SAVE_DASHBOARD_STARTED = 'SAVE_DASHBOARD_STARTED';
-
-interface SaveDashboardStartedAction {
-  type: typeof SAVE_DASHBOARD_STARTED;
-}
-
-export function saveDashboardStarted(): SaveDashboardStartedAction {
-  useDashboardStateStore.getState().setDashboardIsSaving(true);
-  return { type: SAVE_DASHBOARD_STARTED };
-}
-
-export const SAVE_DASHBOARD_FINISHED = 'SAVE_DASHBOARD_FINISHED';
-
-interface SaveDashboardFinishedAction {
-  type: typeof SAVE_DASHBOARD_FINISHED;
-}
-
-export function saveDashboardFinished(): SaveDashboardFinishedAction {
-  useDashboardStateStore.getState().setDashboardIsSaving(false);
-  return { type: SAVE_DASHBOARD_FINISHED };
 }
 
 export function setDashboardLabelsColorMapSync(): void {
@@ -427,17 +142,14 @@ export function setDashboardSharedLabelsColorsSynced(): void {
 }
 
 export const setDashboardMetadata =
-  (updatedMetadata: JsonObject) =>
-  async (dispatch: AppDispatch): Promise<void> => {
+  (updatedMetadata: JsonObject) => async (): Promise<void> => {
     const { dashboardInfo } = useDashboardInfoStore.getState();
-    dispatch(
-      dashboardInfoChanged({
-        metadata: {
-          ...dashboardInfo?.metadata,
-          ...updatedMetadata,
-        },
-      }),
-    );
+    useDashboardInfoStore.getState().setDashboardInfo({
+      metadata: {
+        ...dashboardInfo?.metadata,
+        ...updatedMetadata,
+      },
+    });
   };
 
 // ---------------------------------------------------------------------------
@@ -465,7 +177,7 @@ export function saveDashboardRequest(
   saveType: string,
 ): (dispatch: AppDispatch, getState: GetState) => Promise<JsonObject | void> {
   return (dispatch: AppDispatch, getState: GetState) => {
-    dispatch(saveDashboardStarted());
+    useDashboardStateStore.getState().setDashboardIsSaving(true);
 
     const { dashboardFilters } = getState();
     // Layout lives in the Zustand store — that's the source of truth.
@@ -571,13 +283,13 @@ export function saveDashboardRequest(
       }
       const { chartConfiguration, globalChartConfiguration } =
         handleChartConfiguration();
-      dispatch(
-        saveChartConfiguration({
-          chartConfiguration,
-          globalChartConfiguration,
-        }),
+      persistChartConfiguration({
+        chartConfiguration,
+        globalChartConfiguration,
+      }).catch(() =>
+        dispatch(addDangerToast(t('Failed to save cross-filter scoping'))),
       );
-      dispatch(saveDashboardFinished());
+      useDashboardStateStore.getState().setDashboardIsSaving(false);
       navigateTo(
         `/superset/dashboard/${(response.json as JsonObject).result?.id}/`,
       );
@@ -596,22 +308,12 @@ export function saveDashboardRequest(
           updatedDashboard.json_metadata as string,
         );
         dispatch(setDashboardMetadata(parsedMetadata));
-        if (parsedMetadata.chart_configuration) {
-          dispatch({
-            type: SAVE_CHART_CONFIG_COMPLETE,
-            chartConfiguration: parsedMetadata.chart_configuration,
-          });
-        }
         if (parsedMetadata.native_filter_configuration) {
           useNativeFiltersStore
             .getState()
             .setInScopeStatus(
               parsedMetadata.native_filter_configuration as FilterEntry[],
             );
-          dispatch({
-            type: SET_IN_SCOPE_STATUS_OF_FILTERS,
-            filterConfig: parsedMetadata.native_filter_configuration,
-          });
         }
 
         // fetch datasets to make sure they are up to date
@@ -636,14 +338,14 @@ export function saveDashboardRequest(
       if (lastModifiedTime) {
         saveDashboardRequestSuccess(lastModifiedTime);
       }
-      dispatch(saveDashboardFinished());
+      useDashboardStateStore.getState().setDashboardIsSaving(false);
       // redirect to the new slug or id
       navigateWithState(`/superset/dashboard/${slug || id}/`, {
         event: 'dashboard_properties_changed',
       });
 
       dispatch(addSuccessToast(t('This dashboard was saved successfully.')));
-      dispatch(setOverrideConfirm(undefined));
+      useDashboardStateStore.getState().setOverwriteConfirmMetadata(undefined);
       // Rebaseline the discard-snapshot to the just-saved state so a later
       // discard stays in-place instead of reloading. Charts/dashboardFilters
       // still live in Redux, so pass their current values for the chart set.
@@ -668,7 +370,7 @@ export function saveDashboardRequest(
       if (typeof message === 'string' && message === 'Forbidden') {
         errorText = t('You do not have permission to edit this dashboard');
       }
-      dispatch(saveDashboardFinished());
+      useDashboardStateStore.getState().setDashboardIsSaving(false);
       dispatch(addDangerToast(errorText));
     };
 
@@ -732,20 +434,18 @@ export function saveDashboardRequest(
             updatedDashboard,
           );
           if (overwriteConfirmItems.length > 0) {
-            dispatch(
-              setOverrideConfirm({
-                updatedAt: dashboard.changed_on as string,
-                updatedBy: dashboard.changed_by_name as string,
-                overwriteConfirmItems:
-                  overwriteConfirmItems as DashboardState['overwriteConfirmMetadata'] extends
-                    | { overwriteConfirmItems: infer I }
-                    | undefined
-                    ? I
-                    : never,
-                dashboardId: id,
-                data: updatedDashboard,
-              }),
-            );
+            useDashboardStateStore.getState().setOverwriteConfirmMetadata({
+              updatedAt: dashboard.changed_on as string,
+              updatedBy: dashboard.changed_by_name as string,
+              overwriteConfirmItems:
+                overwriteConfirmItems as DashboardState['overwriteConfirmMetadata'] extends
+                  | { overwriteConfirmItems: infer I }
+                  | undefined
+                  ? I
+                  : never,
+              dashboardId: id,
+              data: updatedDashboard,
+            });
             return reject(overwriteConfirmItems);
           }
           return resolve();
@@ -759,7 +459,7 @@ export function saveDashboardRequest(
             throw reason;
           }
           // Save deferred to the confirm modal; clear the saving overlay.
-          dispatch(saveDashboardFinished());
+          useDashboardStateStore.getState().setDashboardIsSaving(false);
           dispatch(
             logEvent(LOG_ACTIONS_CONFIRM_OVERWRITE_DASHBOARD_METADATA, {
               dashboard_id: id,
@@ -861,39 +561,6 @@ const refreshCharts = (
 ): Promise<void> =>
   dispatch(fetchCharts(chartList, force, interval, dashboardId));
 
-export const ON_FILTERS_REFRESH = 'ON_FILTERS_REFRESH';
-
-interface OnFiltersRefreshAction {
-  type: typeof ON_FILTERS_REFRESH;
-}
-
-export function onFiltersRefresh(): OnFiltersRefreshAction {
-  useDashboardStateStore.getState().setIsFiltersRefreshing(true);
-  return { type: ON_FILTERS_REFRESH };
-}
-
-export const ON_FILTERS_REFRESH_SUCCESS = 'ON_FILTERS_REFRESH_SUCCESS';
-
-interface OnFiltersRefreshSuccessAction {
-  type: typeof ON_FILTERS_REFRESH_SUCCESS;
-}
-
-export function onFiltersRefreshSuccess(): OnFiltersRefreshSuccessAction {
-  useDashboardStateStore.getState().setIsFiltersRefreshing(false);
-  return { type: ON_FILTERS_REFRESH_SUCCESS };
-}
-
-export const ON_REFRESH_SUCCESS = 'ON_REFRESH_SUCCESS';
-
-interface OnRefreshSuccessAction {
-  type: typeof ON_REFRESH_SUCCESS;
-}
-
-export function onRefreshSuccess(): OnRefreshSuccessAction {
-  useDashboardStateStore.getState().setIsRefreshing(false);
-  return { type: ON_REFRESH_SUCCESS };
-}
-
 export const ON_REFRESH = 'ON_REFRESH';
 
 export function onRefresh(
@@ -920,22 +587,12 @@ export function onRefresh(
       dashboardId,
       dispatch,
     ).then(() => {
-      dispatch(onRefreshSuccess());
+      useDashboardStateStore.getState().setIsRefreshing(false);
       if (!skipFiltersRefresh && !isLazyLoad) {
-        dispatch(onFiltersRefresh());
+        useDashboardStateStore.getState().setIsFiltersRefreshing(true);
       }
     });
   };
-}
-
-export const SHOW_BUILDER_PANE = 'SHOW_BUILDER_PANE';
-
-interface ShowBuilderPaneAction {
-  type: typeof SHOW_BUILDER_PANE;
-}
-
-export function showBuilderPane(): ShowBuilderPaneAction {
-  return { type: SHOW_BUILDER_PANE };
 }
 
 // ---------------------------------------------------------------------------
@@ -973,7 +630,9 @@ export function addSliceToDashboard(
       dispatch(addChart(newChart, id)),
       dispatch(fetchDatasourceMetadata(form_data.datasource as string)),
     ]).then(() => {
-      dispatch(addSlice(selectedSlice as Slice));
+      useDashboardStateStore
+        .getState()
+        .addSliceId((selectedSlice as Slice).slice_id);
     });
   };
 }
@@ -988,272 +647,13 @@ export function removeSliceFromDashboard(
   };
 }
 
-export const SET_COLOR_SCHEME = 'SET_COLOR_SCHEME';
-
-interface SetColorSchemeAction {
-  type: typeof SET_COLOR_SCHEME;
-  colorScheme: string;
-}
-
-export function setColorScheme(colorScheme: string): SetColorSchemeAction {
-  useDashboardStateStore.getState().setColorScheme(colorScheme);
-  return { type: SET_COLOR_SCHEME, colorScheme };
-}
-
-export const SET_DIRECT_PATH = 'SET_DIRECT_PATH';
-
-interface SetDirectPathAction {
-  type: typeof SET_DIRECT_PATH;
-  path: string[];
-}
-
-export function setDirectPathToChild(path: string[]): SetDirectPathAction {
-  useDashboardStateStore.getState().setDirectPathToChild(path);
-  return { type: SET_DIRECT_PATH, path };
-}
-
 // ---------------------------------------------------------------------------
 // Tab management
 // ---------------------------------------------------------------------------
 
-export const SET_ACTIVE_TAB = 'SET_ACTIVE_TAB';
-
-interface FindTabsToRestoreResult {
-  activeTabs: string[];
-  inactiveTabs: string[];
-}
-
-function findTabsToRestore(
-  tabId: string,
-  prevTabId: string | undefined,
-  dashboardState: Pick<DashboardState, 'activeTabs' | 'inactiveTabs'>,
-  currentLayout: DashboardLayout,
-): FindTabsToRestoreResult {
-  const { activeTabs: prevActiveTabs, inactiveTabs: prevInactiveTabs } =
-    dashboardState;
-  const restoredTabs: string[] = [];
-  const queue: string[] = [tabId];
-  const visited = new Set<string>();
-  while (queue.length > 0) {
-    const seek = queue.shift()!;
-    if (!visited.has(seek)) {
-      visited.add(seek);
-      const found =
-        prevInactiveTabs?.filter(inactiveTabId =>
-          (currentLayout[inactiveTabId]?.parents ?? [])
-            .filter((parentId: string) => parentId.startsWith('TAB-'))
-            .slice(-1)
-            .includes(seek),
-        ) ?? [];
-      restoredTabs.push(...found);
-      queue.push(...found);
-    }
-  }
-  const activeTabs =
-    restoredTabs.length > 0 ? [tabId].concat(restoredTabs) : [tabId];
-  const tabChanged = Boolean(prevTabId) && tabId !== prevTabId;
-  const inactiveTabs = tabChanged
-    ? (prevActiveTabs || []).filter(
-        (activeTabId: string) =>
-          activeTabId !== prevTabId &&
-          (currentLayout[activeTabId]?.parents ?? []).includes(prevTabId!),
-      )
-    : [];
-  return {
-    activeTabs,
-    inactiveTabs,
-  };
-}
-
-interface SetActiveTabAction {
-  type: typeof SET_ACTIVE_TAB;
-  activeTabs: string[];
-  prevTabId: string | undefined;
-  inactiveTabs: string[];
-}
-
-export function setActiveTab(
-  tabId: string,
-  prevTabId?: string,
-): (dispatch: AppDispatch, getState: GetState) => SetActiveTabAction {
-  return (dispatch: AppDispatch, getState: GetState) => {
-    const { activeTabs, inactiveTabs } = findTabsToRestore(
-      tabId,
-      prevTabId,
-      useDashboardStateStore.getState(),
-      useDashboardLayoutStore.getState().layout,
-    );
-
-    useDashboardStateStore
-      .getState()
-      .applyActiveTab(activeTabs, inactiveTabs, prevTabId);
-
-    return dispatch({
-      type: SET_ACTIVE_TAB,
-      activeTabs,
-      prevTabId,
-      inactiveTabs,
-    } as SetActiveTabAction);
-  };
-}
-
-// Even though SET_ACTIVE_TABS is not being called from Superset's codebase,
-// it is being used by Preset extensions.
-export const SET_ACTIVE_TABS = 'SET_ACTIVE_TABS';
-
-interface SetActiveTabsAction {
-  type: typeof SET_ACTIVE_TABS;
-  activeTabs: string[];
-}
-
-export function setActiveTabs(activeTabs: string[]): SetActiveTabsAction {
-  useDashboardStateStore.getState().setActiveTabs(activeTabs);
-  return { type: SET_ACTIVE_TABS, activeTabs };
-}
-
-// ---------------------------------------------------------------------------
-// Filter focus
-// ---------------------------------------------------------------------------
-
-export const SET_FOCUSED_FILTER_FIELD = 'SET_FOCUSED_FILTER_FIELD';
-
-interface SetFocusedFilterFieldAction {
-  type: typeof SET_FOCUSED_FILTER_FIELD;
-  chartId: number;
-  column: string;
-}
-
-export function setFocusedFilterField(
-  chartId: number,
-  column: string,
-): SetFocusedFilterFieldAction {
-  useDashboardStateStore.getState().setFocusedFilterField(chartId, column);
-  return { type: SET_FOCUSED_FILTER_FIELD, chartId, column };
-}
-
-export const UNSET_FOCUSED_FILTER_FIELD = 'UNSET_FOCUSED_FILTER_FIELD';
-
-interface UnsetFocusedFilterFieldAction {
-  type: typeof UNSET_FOCUSED_FILTER_FIELD;
-  chartId: number;
-  column: string;
-}
-
-export function unsetFocusedFilterField(
-  chartId: number,
-  column: string,
-): UnsetFocusedFilterFieldAction {
-  useDashboardStateStore.getState().unsetFocusedFilterField(chartId, column);
-  return { type: UNSET_FOCUSED_FILTER_FIELD, chartId, column };
-}
-
-// ---------------------------------------------------------------------------
-// Full-size chart
-// ---------------------------------------------------------------------------
-
-export const SET_FULL_SIZE_CHART_ID = 'SET_FULL_SIZE_CHART_ID';
-
-interface SetFullSizeChartIdAction {
-  type: typeof SET_FULL_SIZE_CHART_ID;
-  chartId: number | null;
-}
-
-export function setFullSizeChartId(
-  chartId: number | null,
-): SetFullSizeChartIdAction {
-  return { type: SET_FULL_SIZE_CHART_ID, chartId };
-}
-
-// ---------------------------------------------------------------------------
-// Chart state (AG Grid persistence, etc.)
-// ---------------------------------------------------------------------------
-
-export const UPDATE_CHART_STATE = 'UPDATE_CHART_STATE';
-
-interface UpdateChartStateAction {
-  type: typeof UPDATE_CHART_STATE;
-  chartId: number;
-  vizType: string;
-  chartState: AgGridChartState;
-  lastModified: number;
-}
-
-export function updateChartState(
-  chartId: number,
-  vizType: string,
-  chartState: AgGridChartState,
-): UpdateChartStateAction {
-  useDashboardStateStore
-    .getState()
-    .updateChartState(chartId, vizType, chartState);
-  return {
-    type: UPDATE_CHART_STATE,
-    chartId,
-    vizType,
-    chartState,
-    lastModified: Date.now(),
-  };
-}
-
-export const REMOVE_CHART_STATE = 'REMOVE_CHART_STATE';
-
-interface RemoveChartStateAction {
-  type: typeof REMOVE_CHART_STATE;
-  chartId: number;
-}
-
-export function removeChartState(chartId: number): RemoveChartStateAction {
-  useDashboardStateStore.getState().removeChartState(chartId);
-  return { type: REMOVE_CHART_STATE, chartId };
-}
-
-export const RESTORE_CHART_STATES = 'RESTORE_CHART_STATES';
-
-interface RestoreChartStatesAction {
-  type: typeof RESTORE_CHART_STATES;
-  chartStates: DashboardChartStates;
-}
-
-export function restoreChartStates(
-  chartStates: DashboardChartStates,
-): RestoreChartStatesAction {
-  useDashboardStateStore.getState().restoreChartStates(chartStates);
-  return { type: RESTORE_CHART_STATES, chartStates };
-}
-
-export const CLEAR_ALL_CHART_STATES = 'CLEAR_ALL_CHART_STATES';
-
-interface ClearAllChartStatesAction {
-  type: typeof CLEAR_ALL_CHART_STATES;
-}
-
-export function clearAllChartStates(): ClearAllChartStatesAction {
-  useDashboardStateStore.getState().clearAllChartStates();
-  return { type: CLEAR_ALL_CHART_STATES };
-}
-
 // ---------------------------------------------------------------------------
 // Undo history
 // ---------------------------------------------------------------------------
-
-export const SET_MAX_UNDO_HISTORY_EXCEEDED = 'SET_MAX_UNDO_HISTORY_EXCEEDED';
-
-interface SetMaxUndoHistoryExceededAction {
-  type: typeof SET_MAX_UNDO_HISTORY_EXCEEDED;
-  payload: { maxUndoHistoryExceeded: boolean };
-}
-
-export function setMaxUndoHistoryExceeded(
-  maxUndoHistoryExceeded = true,
-): SetMaxUndoHistoryExceededAction {
-  useDashboardStateStore
-    .getState()
-    .setMaxUndoHistoryExceeded(maxUndoHistoryExceeded);
-  return {
-    type: SET_MAX_UNDO_HISTORY_EXCEEDED,
-    payload: { maxUndoHistoryExceeded },
-  };
-}
 
 export function maxUndoHistoryToast(): (
   dispatch: AppDispatch,
@@ -1277,23 +677,6 @@ export function maxUndoHistoryToast(): (
 // ---------------------------------------------------------------------------
 // Datasets status
 // ---------------------------------------------------------------------------
-
-export const SET_DATASETS_STATUS = 'SET_DATASETS_STATUS';
-
-interface SetDatasetsStatusAction {
-  type: typeof SET_DATASETS_STATUS;
-  status: ResourceStatus;
-}
-
-export function setDatasetsStatus(
-  status: ResourceStatus,
-): SetDatasetsStatusAction {
-  useDashboardStateStore.getState().setDatasetsStatus(status);
-  return {
-    type: SET_DATASETS_STATUS,
-    status,
-  };
-}
 
 // ---------------------------------------------------------------------------
 // Color persistence
@@ -1386,7 +769,7 @@ export const applyDashboardLabelsColorOnLoad =
         hasChanged = true;
         updatedScheme = fallbackScheme;
 
-        dispatch(setColorScheme(updatedScheme));
+        useDashboardStateStore.getState().setColorScheme(updatedScheme);
         dispatch(
           setDashboardMetadata({
             color_scheme: updatedScheme,

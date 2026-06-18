@@ -25,10 +25,7 @@ import { componentLookup } from 'src/dashboard/components/gridComponents';
 import getDetailedComponentWidth from 'src/dashboard/util/getDetailedComponentWidth';
 import { getActiveFilters } from 'src/dashboard/util/activeDashboardFilters';
 import { COLUMN_TYPE, ROW_TYPE } from 'src/dashboard/util/componentTypes';
-import {
-  setDirectPathToChild,
-  setActiveTab,
-} from 'src/dashboard/actions/dashboardState';
+import { findTabsToRestore } from 'src/dashboard/util/findTabsToRestore';
 import type { DropResult } from 'src/dashboard/components/dnd/dragDroppableConfig';
 import type { LayoutItem } from 'src/dashboard/types';
 import {
@@ -115,14 +112,27 @@ const DashboardComponent = (
       bindActionCreators(
         {
           addDangerToast,
-          setDirectPathToChild,
-          setActiveTab,
           logEvent,
         },
         dispatch,
       ),
     [dispatch],
   );
+  const { setDirectPathToChild } = useDashboardStateStore.getState();
+  // Tab navigation: compute the active/inactive tab sets (reading the layout +
+  // state stores) and apply them via the state store. Lives here rather than a
+  // store slice, since the layout store already imports the state store.
+  const setActiveTab = useCallback((tabId: string, prevTabId?: string) => {
+    const { activeTabs, inactiveTabs } = findTabsToRestore(
+      tabId,
+      prevTabId,
+      useDashboardStateStore.getState(),
+      useDashboardLayoutStore.getState().layout,
+    );
+    useDashboardStateStore
+      .getState()
+      .applyActiveTab(activeTabs, inactiveTabs, prevTabId);
+  }, []);
   const layoutActions = useMemo(
     () => ({
       createComponent,
@@ -172,6 +182,8 @@ const DashboardComponent = (
       {...props}
       {...boundActionCreators}
       {...layoutActions}
+      setActiveTab={setActiveTab}
+      setDirectPathToChild={setDirectPathToChild}
       component={component}
       getComponentById={getComponentById}
       parentComponent={parentComponent}
