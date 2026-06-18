@@ -44,8 +44,8 @@ export const useFilterConfigModal = ({
   dashboardId,
   initialFilterId,
 }: UseFilterConfigModalProps): UseFilterConfigModalReturn => {
-  const { mutate: saveFilterConfiguration } = useSaveFilterConfiguration();
-  const { mutate: saveChartCustomization } = useSaveChartCustomization();
+  const { mutateAsync: saveFilterConfiguration } = useSaveFilterConfiguration();
+  const { mutateAsync: saveChartCustomization } = useSaveChartCustomization();
   const [isFilterConfigModalOpen, setIsFilterConfigModalOpen] = useState(false);
 
   const openFilterConfigModal = useCallback(() => {
@@ -60,10 +60,10 @@ export const useFilterConfigModal = ({
     async (changes: SaveChangesType) => {
       try {
         if (changes.filterChanges) {
-          saveFilterConfiguration(changes.filterChanges);
+          await saveFilterConfiguration(changes.filterChanges);
         }
         if (changes.customizationChanges) {
-          saveChartCustomization({
+          await saveChartCustomization({
             modifiedCustomizations: changes.customizationChanges.modified,
             deletedIds: changes.customizationChanges.deleted,
             reorderedIds: changes.customizationChanges.reordered,
@@ -72,7 +72,7 @@ export const useFilterConfigModal = ({
         }
         closeFilterConfigModal();
       } catch (error) {
-        // Error toast already shown in hook, prevent modal close
+        // Error toast already shown in hook; keep the modal open so edits aren't lost.
       }
     },
     [saveFilterConfiguration, saveChartCustomization, closeFilterConfigModal],
