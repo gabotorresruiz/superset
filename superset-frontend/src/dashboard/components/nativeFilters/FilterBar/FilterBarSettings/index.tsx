@@ -24,9 +24,10 @@ import { styled, useTheme, css } from '@apache-superset/core/theme';
 import { MenuProps } from '@superset-ui/core/components/Menu';
 import { FilterBarOrientation } from 'src/dashboard/types';
 import {
-  useDashboardInfoStore,
-  selectFilterBarOrientation,
-  selectCrossFiltersEnabled,
+  useFilterBarOrientation,
+  useCrossFiltersEnabled,
+  useCanEditDashboard,
+  useDashboardId,
 } from 'src/dashboard/stores';
 import {
   useSaveFilterBarOrientation,
@@ -64,22 +65,18 @@ const isOrientation = (o: SelectedKey): o is FilterBarOrientation =>
 const FilterBarSettings = () => {
   const theme = useTheme();
   const dispatch = useDispatch();
-  const isCrossFiltersEnabled = useDashboardInfoStore(
-    selectCrossFiltersEnabled,
-  );
-  const filterBarOrientation = useDashboardInfoStore(
-    selectFilterBarOrientation,
-  );
+  const isCrossFiltersEnabled = useCrossFiltersEnabled();
+  const filterBarOrientation = useFilterBarOrientation();
   const [selectedFilterBarOrientation, setSelectedFilterBarOrientation] =
     useState(filterBarOrientation);
 
   const [crossFiltersEnabled, setCrossFiltersEnabled] = useState<boolean>(
     isCrossFiltersEnabled,
   );
-  const canEdit = useDashboardInfoStore(s => s.dashboardInfo.dash_edit_perm);
+  const canEdit = useCanEditDashboard();
   const filters = useFilters();
   const filterValues = useMemo(() => Object.values(filters), [filters]);
-  const dashboardId = useDashboardInfoStore(s => s.dashboardInfo.id);
+  const dashboardId = useDashboardId();
 
   const [openScopingModal, scopingModal] = useCrossFiltersScopingModal();
 

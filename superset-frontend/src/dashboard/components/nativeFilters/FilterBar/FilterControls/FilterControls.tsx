@@ -57,7 +57,7 @@ import {
 import { FilterBarOrientation } from 'src/dashboard/types';
 import {
   useDashboardInfoStore,
-  selectFilterBarOrientation,
+  useFilterBarOrientation,
 } from 'src/dashboard/stores';
 import {
   DropdownContainer,
@@ -159,9 +159,7 @@ const FilterControls: FC<FilterControlsProps> = ({
   hideHeader = false,
 }) => {
   const theme = useTheme();
-  const filterBarOrientation = useDashboardInfoStore(
-    selectFilterBarOrientation,
-  );
+  const filterBarOrientation = useFilterBarOrientation();
 
   const { outlinedFilterId, lastUpdated } = useFilterOutlined();
 

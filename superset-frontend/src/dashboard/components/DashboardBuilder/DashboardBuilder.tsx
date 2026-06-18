@@ -53,8 +53,9 @@ import FilterBar from 'src/dashboard/components/nativeFilters/FilterBar';
 import {
   useDashboardStateStore,
   useDashboardLayoutStore,
-  useDashboardInfoStore,
-  selectFilterBarOrientation,
+  useFilterBarOrientation,
+  useCanEditDashboard,
+  useDashboardId,
   useHandleComponentDrop,
 } from 'src/dashboard/stores';
 import { useUiConfig } from 'src/components/UiConfigContext';
@@ -365,15 +366,13 @@ const DashboardBuilder = () => {
   const uiConfig = useUiConfig();
   const theme = useTheme();
 
-  const dashboardId = useDashboardInfoStore(s => `${s.dashboardInfo.id}`);
+  const dashboardId = `${useDashboardId()}`;
   const dashboardLayout = useDashboardLayoutStore(s => s.layout);
   const editMode = useDashboardStateStore(s => s.editMode);
   const fullSizeChartId = useDashboardStateStore(s => s.fullSizeChartId);
-  const canEdit = useDashboardInfoStore(s => s.dashboardInfo.dash_edit_perm);
+  const canEdit = useCanEditDashboard();
   const dashboardIsSaving = useDashboardStateStore(s => s.dashboardIsSaving);
-  const filterBarOrientation = useDashboardInfoStore(
-    selectFilterBarOrientation,
-  );
+  const filterBarOrientation = useFilterBarOrientation();
 
   const handleChangeTab = useCallback(
     ({ pathToTabIndex }: { pathToTabIndex: string[] }) => {
