@@ -22,8 +22,9 @@ import { URL_PARAMS } from 'src/constants';
 import { getUrlParam } from 'src/utils/urlUtils';
 import { RootState } from 'src/dashboard/types';
 import {
-  useDashboardStateStore,
   useDashboardInfoStore,
+  useNativeFiltersBarOpen,
+  setNativeFiltersBarOpen,
 } from 'src/dashboard/stores';
 import { isFeatureEnabled, FeatureFlag } from '@superset-ui/core';
 import {
@@ -39,8 +40,7 @@ export const useNativeFilters = () => {
     () => getUrlParam(URL_PARAMS.showFilters) ?? true,
   );
   const canEdit = useDashboardInfoStore(s => s.dashboardInfo.dash_edit_perm);
-  const dashboardFiltersOpen =
-    useDashboardStateStore(s => s.nativeFiltersBarOpen) ?? false;
+  const dashboardFiltersOpen = useNativeFiltersBarOpen() ?? false;
 
   const filters = useFilters();
   const filterValues = useMemo(() => Object.values(filters), [filters]);
@@ -81,7 +81,7 @@ export const useNativeFilters = () => {
   const toggleDashboardFiltersOpen = useCallback(
     (visible?: boolean) => {
       const newState = visible ?? !dashboardFiltersOpen;
-      useDashboardStateStore.getState().setNativeFiltersBarOpen(newState);
+      setNativeFiltersBarOpen(newState);
     },
     [dashboardFiltersOpen],
   );
@@ -95,9 +95,9 @@ export const useNativeFilters = () => {
         chartCustomizations.length === 0 &&
         nativeFiltersEnabled)
     ) {
-      useDashboardStateStore.getState().setNativeFiltersBarOpen(false);
+      setNativeFiltersBarOpen(false);
     } else {
-      useDashboardStateStore.getState().setNativeFiltersBarOpen(true);
+      setNativeFiltersBarOpen(true);
     }
   }, [
     filterValues.length,

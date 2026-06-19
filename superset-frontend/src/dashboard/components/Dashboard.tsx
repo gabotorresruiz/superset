@@ -18,7 +18,7 @@
  */
 import { ReactNode, useCallback, useContext, useEffect, useRef } from 'react';
 import { JsonObject } from '@superset-ui/core';
-import { useDashboardStateStore } from 'src/dashboard/stores';
+import { clearAllChartStates } from 'src/dashboard/stores';
 
 import { Loading } from '@superset-ui/core/components';
 import { PluginContext } from 'src/components';
@@ -289,7 +289,7 @@ function Dashboard({
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       actionsRef.current.clearDataMaskState();
-      useDashboardStateStore.getState().clearAllChartStates();
+      clearAllChartStates();
     };
     // Only run on mount/unmount - listeners/cleanup go through refs to avoid
     // capturing stale closures.

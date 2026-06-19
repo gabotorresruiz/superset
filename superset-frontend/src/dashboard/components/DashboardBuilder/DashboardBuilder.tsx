@@ -51,12 +51,16 @@ import {
 } from 'src/dashboard/util/constants';
 import FilterBar from 'src/dashboard/components/nativeFilters/FilterBar';
 import {
-  useDashboardStateStore,
   useDashboardLayoutStore,
   useFilterBarOrientation,
   useCanEditDashboard,
   useDashboardId,
   useHandleComponentDrop,
+  useEditMode,
+  useFullSizeChartId,
+  useDashboardIsSaving,
+  setDirectPathToChild,
+  setEditMode,
 } from 'src/dashboard/stores';
 import { useUiConfig } from 'src/components/UiConfigContext';
 import ResizableSidebar from 'src/components/ResizableSidebar';
@@ -368,15 +372,15 @@ const DashboardBuilder = () => {
 
   const dashboardId = `${useDashboardId()}`;
   const dashboardLayout = useDashboardLayoutStore(s => s.layout);
-  const editMode = useDashboardStateStore(s => s.editMode);
-  const fullSizeChartId = useDashboardStateStore(s => s.fullSizeChartId);
+  const editMode = useEditMode();
+  const fullSizeChartId = useFullSizeChartId();
   const canEdit = useCanEditDashboard();
-  const dashboardIsSaving = useDashboardStateStore(s => s.dashboardIsSaving);
+  const dashboardIsSaving = useDashboardIsSaving();
   const filterBarOrientation = useFilterBarOrientation();
 
   const handleChangeTab = useCallback(
     ({ pathToTabIndex }: { pathToTabIndex: string[] }) => {
-      useDashboardStateStore.getState().setDirectPathToChild(pathToTabIndex);
+      setDirectPathToChild(pathToTabIndex);
       window.scrollTo(0, 0);
     },
     [],
@@ -389,7 +393,7 @@ const DashboardBuilder = () => {
       getRootLevelTabsComponent(dashboardLayout),
       0,
     );
-    useDashboardStateStore.getState().setDirectPathToChild(firstTab);
+    setDirectPathToChild(firstTab);
   }, [dashboardLayout]);
 
   const handleDrop = useHandleComponentDrop();
@@ -494,7 +498,7 @@ const DashboardBuilder = () => {
         getRootLevelTabsComponent(dashboardLayout),
         newTabsLength - 1,
       );
-      useDashboardStateStore.getState().setDirectPathToChild(lastTab);
+      setDirectPathToChild(lastTab);
     }
 
     currentTopLevelTabs.current = topLevelTabs;
@@ -659,7 +663,7 @@ const DashboardBuilder = () => {
               }
               buttonText={canEdit && t('Edit the dashboard')}
               buttonAction={() => {
-                useDashboardStateStore.getState().setEditMode(true);
+                setEditMode(true);
                 useDashboardLayoutStore.temporal.getState().clear();
               }}
               image="dashboard.svg"
