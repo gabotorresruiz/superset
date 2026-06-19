@@ -22,6 +22,8 @@ export {
   initialState as dashboardStateInitialState,
 } from './dashboardState';
 export type { DashboardStateStore } from './dashboardState';
+export * from './dashboardState/hooks';
+export * from './dashboardState/actions';
 
 export {
   useDashboardLayoutStore,
