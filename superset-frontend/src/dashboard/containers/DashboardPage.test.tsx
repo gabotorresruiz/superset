@@ -94,7 +94,7 @@ jest.mock('src/dashboard/components/DashboardBuilder/DashboardBuilder', () => ({
   default: () => <div data-testid="dashboard-builder">DashboardBuilder</div>,
 }));
 
-jest.mock('src/dashboard/components/SyncDashboardState', () => ({
+jest.mock('src/dashboard/containers/SyncDashboardState', () => ({
   __esModule: true,
   default: () => null,
   getDashboardContextLocalStorage: () => ({}),

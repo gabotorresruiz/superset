@@ -66,7 +66,7 @@ import {
 } from '../styles';
 import SyncDashboardState, {
   getDashboardContextLocalStorage,
-} from '../components/SyncDashboardState';
+} from './SyncDashboardState';
 import { AutoRefreshProvider } from '../contexts/AutoRefreshContext';
 import { Filter, PartialFilters } from '@superset-ui/core';
 import {
