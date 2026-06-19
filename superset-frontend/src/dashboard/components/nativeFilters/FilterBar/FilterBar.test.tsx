@@ -1059,7 +1059,7 @@ test('FilterBar with orientation=Horizontal and no filters shows empty state alo
       dash_edit_perm: true,
       metadata: {
         native_filter_configuration: [],
-        filterBarOrientation: FilterBarOrientation.Horizontal,
+        filter_bar_orientation: FilterBarOrientation.Horizontal,
       },
     },
     dashboardState: {
