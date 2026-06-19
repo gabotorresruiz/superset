@@ -307,6 +307,17 @@
               {
                 "name": "@tanstack/react-query",
                 "message": "Dashboard components must use the query hooks from 'src/dashboard/queries', not @tanstack/react-query directly."
+              },
+              {
+                "name": "src/dashboard/stores",
+                "importNames": [
+                  "useDashboardStateStore",
+                  "useDashboardInfoStore",
+                  "useDashboardLayoutStore",
+                  "useDashboardSlicesStore",
+                  "useNativeFiltersStore"
+                ],
+                "message": "Import the domain hooks/actions from 'src/dashboard/stores', not the raw Zustand stores."
               }
             ],
             "patterns": [
