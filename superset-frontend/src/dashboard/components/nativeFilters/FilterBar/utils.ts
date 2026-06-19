@@ -29,7 +29,7 @@ import { useSelector } from 'react-redux';
 import { areObjectsEqual } from 'src/reduxUtils';
 import { testWithId } from 'src/utils/testUtils';
 import { RootState } from 'src/dashboard/types';
-import { useDashboardSlicesStore } from 'src/dashboard/stores';
+import { useSlices } from 'src/dashboard/stores';
 import { FilterElement } from './FilterControls/types';
 
 export const getOnlyExtraFormData = (
@@ -144,7 +144,7 @@ export const checkIsApplyDisabled = (
 };
 
 export const useChartsVerboseMaps = () => {
-  const slices = useDashboardSlicesStore(s => s.slices);
+  const slices = useSlices();
   const datasources = useSelector((state: RootState) => state.datasources);
   return useMemo(
     () =>

@@ -59,9 +59,9 @@ import {
 } from '../../../util/chartStateConverter';
 import { useIsAutoRefreshing } from 'src/dashboard/contexts/AutoRefreshContext';
 import {
-  useDashboardSlicesStore,
   useNativeFiltersStore,
   useCrossFiltersEnabled,
+  useSlice,
   useDashboardInfo,
   useDashboardConf,
   useCanExplore,
@@ -216,7 +216,7 @@ const Chart = (props: ChartProps) => {
   const annotationQuery = chart?.annotationQuery;
 
   const slice: Slice | Record<string, never> =
-    useDashboardSlicesStore(s => s.slices[props.id]) || EMPTY_OBJECT;
+    useSlice(props.id) || EMPTY_OBJECT;
   const sliceVizType = slice.viz_type;
   const sliceSliceId = slice.slice_id;
   const sliceSliceName = slice.slice_name;

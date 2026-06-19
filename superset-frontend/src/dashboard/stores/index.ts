@@ -34,6 +34,7 @@ export * from './dashboardLayout/actions';
 
 export { useDashboardSlicesStore } from './dashboardSlices';
 export type { DashboardSlicesStore } from './dashboardSlices';
+export * from './dashboardSlices/hooks';
 
 export {
   useDashboardInfoStore,

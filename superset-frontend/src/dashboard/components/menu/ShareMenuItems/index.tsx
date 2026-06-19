@@ -30,11 +30,7 @@ import { getDashboardPermalink } from 'src/utils/urlUtils';
 import EmbedCodeContent from 'src/explore/components/EmbedCodeContent';
 import { ModalTrigger } from '@superset-ui/core/components';
 import { MenuKeys } from 'src/dashboard/types';
-import {
-  useDashboardSlicesStore,
-  useActiveTabs,
-  useChartStates,
-} from 'src/dashboard/stores';
+import { useActiveTabs, useChartStates, useSlices } from 'src/dashboard/stores';
 import { useDataMaskStore } from 'src/dataMask/useDataMaskStore';
 import { hasStatefulCharts } from 'src/dashboard/util/chartStateConverter';
 
@@ -84,7 +80,7 @@ export const useShareMenuItems = (props: ShareMenuItemProps): MenuItem => {
 
   const activeTabs = useActiveTabs();
   const chartStates = useChartStates();
-  const sliceEntities = useDashboardSlicesStore(s => s.slices);
+  const sliceEntities = useSlices();
   const dataMask = useDataMaskStore(s => s.dataMask);
 
   async function generateUrl() {

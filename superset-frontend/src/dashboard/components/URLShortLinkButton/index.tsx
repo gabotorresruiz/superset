@@ -29,11 +29,7 @@ import {
 import { CopyToClipboard } from 'src/components';
 import { getDashboardPermalink } from 'src/utils/urlUtils';
 import { useToasts } from 'src/components/MessageToasts/withToasts';
-import {
-  useDashboardSlicesStore,
-  useActiveTabs,
-  useChartStates,
-} from 'src/dashboard/stores';
+import { useActiveTabs, useChartStates, useSlices } from 'src/dashboard/stores';
 import { useDataMaskStore } from 'src/dataMask/useDataMaskStore';
 import { Typography } from '@superset-ui/core/components/Typography';
 import { hasStatefulCharts } from 'src/dashboard/util/chartStateConverter';
@@ -58,7 +54,7 @@ export default function URLShortLinkButton({
   const { addDangerToast } = useToasts();
   const activeTabs = useActiveTabs();
   const chartStates = useChartStates();
-  const sliceEntities = useDashboardSlicesStore(s => s.slices);
+  const sliceEntities = useSlices();
   const dataMask = useDataMaskStore(s => s.dataMask);
 
   const getCopyUrl = async () => {
