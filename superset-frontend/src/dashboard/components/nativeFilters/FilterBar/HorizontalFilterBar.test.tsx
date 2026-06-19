@@ -134,9 +134,11 @@ const buildStateWithFilters = (
   dashboardInfo: {
     id: 1,
     dash_edit_perm: true,
-    filterBarOrientation: FilterBarOrientation.Horizontal,
+    // Orientation is read via selectFilterBarOrientation (metadata), so child
+    // FilterControls renders horizontally inside the horizontal bar.
     metadata: {
       native_filter_configuration: filters,
+      filter_bar_orientation: FilterBarOrientation.Horizontal,
     },
   },
   dashboardLayout: {
@@ -205,7 +207,7 @@ test('renders default actions slot, settings gear, and empty message together in
     dashboardInfo: {
       id: 1,
       dash_edit_perm: true,
-      filterBarOrientation: FilterBarOrientation.Horizontal,
+      metadata: { filter_bar_orientation: FilterBarOrientation.Horizontal },
     } as unknown as DashboardInfo,
   });
   useNativeFiltersStore.setState({ filters: {} });
