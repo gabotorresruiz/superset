@@ -105,3 +105,45 @@ export const useLabelsColorMap = (): JsonObject =>
 /** Shared label colors carried in metadata (`shared_label_colors`). */
 export const useSharedLabelsColors = (): string[] | undefined =>
   useDashboardInfoStore(s => s.dashboardInfo?.metadata?.shared_label_colors);
+
+/** The dashboard's custom CSS (empty string when unset). */
+export const useCustomCss = (): string =>
+  useDashboardInfoStore(s => s.dashboardInfo.css ?? '');
+
+/** Pending (unsaved) chart customizations keyed by item id. */
+export const usePendingChartCustomizations = () =>
+  useDashboardInfoStore(s => s.dashboardInfo.pendingChartCustomizations);
+
+/** The chart-customization config list (undefined when unset). */
+export const useChartCustomizationConfig = () =>
+  useDashboardInfoStore(
+    s => s.dashboardInfo?.metadata?.chart_customization_config,
+  );
+
+/** The global cross-filter chart configuration (undefined when unset). */
+export const useGlobalChartConfiguration = () =>
+  useDashboardInfoStore(
+    s => s.dashboardInfo.metadata?.global_chart_configuration,
+  );
+
+/** The native-filter configuration list (undefined when unset). */
+export const useNativeFilterConfiguration = () =>
+  useDashboardInfoStore(
+    s => s.dashboardInfo?.metadata?.native_filter_configuration,
+  );
+
+/** The server-configured periodical-refresh limit, if any. */
+export const useRefreshLimit = () =>
+  useDashboardInfoStore(
+    s =>
+      s.dashboardInfo?.common?.conf
+        ?.SUPERSET_DASHBOARD_PERIODICAL_REFRESH_LIMIT,
+  );
+
+/** The server-configured periodical-refresh warning message, if any. */
+export const useRefreshWarningMessage = () =>
+  useDashboardInfoStore(
+    s =>
+      s.dashboardInfo?.common?.conf
+        ?.SUPERSET_DASHBOARD_PERIODICAL_REFRESH_WARNING_MESSAGE,
+  );

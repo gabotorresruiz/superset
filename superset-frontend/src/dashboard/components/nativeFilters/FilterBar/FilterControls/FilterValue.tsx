@@ -44,12 +44,12 @@ import {
 import { styled, SupersetTheme } from '@apache-superset/core/theme';
 import { useTheme } from '@emotion/react';
 import {
-  useDashboardInfoStore,
   useNativeFiltersStore,
   useIsRefreshing,
   useIsFiltersRefreshing,
   setIsFiltersRefreshing,
   setDirectPathToChild,
+  useDashboardId,
 } from 'src/dashboard/stores';
 import { isEqual, isEqualWith } from 'lodash';
 import { getChartDataRequest } from 'src/components/Chart/chartAction';
@@ -160,7 +160,7 @@ const FilterValue: FC<FilterValueProps> = ({
   const [state, setState] = useState<ChartDataResponseResult[]>([]);
   const hasDeps = Boolean(filter.cascadeParentIds?.length);
   const [hasDepsFilterValue, setHasDepsFilterValue] = useState(hasDeps);
-  const dashboardId = useDashboardInfoStore(s => s.dashboardInfo.id);
+  const dashboardId = useDashboardId();
 
   const [error, setError] = useState<ClientErrorObject>();
   const [formData, setFormData] = useState<Partial<QueryFormData>>({

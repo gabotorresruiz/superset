@@ -84,7 +84,8 @@ import {
 import { useStore } from 'zustand';
 import {
   useDashboardLayoutStore,
-  useDashboardInfoStore,
+  useDashboardInfo,
+  useCustomCss,
   useEditMode,
   useIsPublished,
   useHasUnsavedChanges,
@@ -98,6 +99,7 @@ import {
   useUpdatedColorScheme,
   useLastModifiedTime,
   setHasUnsavedChanges,
+  setDashboardInfo,
   setRefreshFrequency,
   setMaxUndoHistoryExceeded,
   setEditMode,
@@ -215,7 +217,7 @@ const Header = (): JSX.Element => {
   const [showingReportModal, setShowingReportModal] = useState(false);
   const [currentReportDeleting, setCurrentReportDeleting] =
     useState<AlertObject | null>(null);
-  const dashboardInfo = useDashboardInfoStore(s => s.dashboardInfo);
+  const dashboardInfo = useDashboardInfo();
   const layout = useDashboardLayoutStore(s => s.layout);
   // Undo/redo history lives in the zundo temporal store.
   const undoLength = useStore(
@@ -232,7 +234,7 @@ const Header = (): JSX.Element => {
   const editMode = useEditMode();
   const isPublished = useIsPublished();
   const hasUnsavedChanges = useHasUnsavedChanges();
-  const customCss = useDashboardInfoStore(s => s.dashboardInfo.css ?? '');
+  const customCss = useCustomCss();
   const expandedSlices = useExpandedSlices();
   const refreshFrequency = useRefreshFrequency();
   const shouldPersistRefreshFrequency = useShouldPersistRefreshFrequency();
@@ -591,7 +593,7 @@ const Header = (): JSX.Element => {
 
   const handleOnPropertiesChange = useCallback(
     (updates: DashboardPropertiesUpdate) => {
-      useDashboardInfoStore.getState().setDashboardInfo({
+      setDashboardInfo({
         slug: updates.slug,
         description: updates.description,
         metadata: JSON.parse(updates.jsonMetadata || '{}'),

@@ -23,4 +23,5 @@ export {
   selectCrossFiltersEnabled,
 } from './useDashboardInfoStore';
 export * from './hooks';
+export * from './actions';
 export type { DashboardInfoStore, DashboardInfoData } from './types';

@@ -48,7 +48,10 @@ import {
   useThemes,
   useSaveDashboardProperties,
 } from 'src/dashboard/queries';
-import { useDashboardInfoStore, setColorScheme } from 'src/dashboard/stores';
+import {
+  setColorScheme,
+  setDashboardInfo as setStoreDashboardInfo,
+} from 'src/dashboard/stores';
 import { setDashboardMetadata } from 'src/dashboard/actions/dashboardState';
 import { areObjectsEqual } from 'src/reduxUtils';
 import { StandardModal, useModalValidation } from 'src/components/Modal';
@@ -276,9 +279,7 @@ const PropertiesModal = ({
       cssDebounceTimer.current = null;
     }
     if (originalCss.current !== null) {
-      useDashboardInfoStore
-        .getState()
-        .setDashboardInfo({ css: originalCss.current });
+      setStoreDashboardInfo({ css: originalCss.current });
       setColorScheme(originalDashboardMetadata.current.color_scheme ?? '');
     }
     onHide();
@@ -612,7 +613,7 @@ const PropertiesModal = ({
       cssDebounceTimer.current = null;
     }
     cssDebounceTimer.current = setTimeout(() => {
-      useDashboardInfoStore.getState().setDashboardInfo({ css });
+      setStoreDashboardInfo({ css });
     }, 500);
   }, []);
 

@@ -79,7 +79,7 @@ import {
   DatasourcesState,
   RootState,
 } from 'src/dashboard/types';
-import { useDashboardInfoStore } from 'src/dashboard/stores';
+import { useDashboardId } from 'src/dashboard/stores';
 import DateFilterControl from 'src/explore/components/controls/DateFilterControl';
 import AdhocFilterControl from 'src/explore/components/controls/FilterControl/AdhocFilterControl';
 import type AdhocFilterClass from 'src/explore/components/controls/FilterControl/AdhocFilter';
@@ -312,7 +312,7 @@ const FiltersConfigForm = (
   const [activeTabKey, setActiveTabKey] = useState<string>(
     FilterTabs.configuration.key,
   );
-  const dashboardId = useDashboardInfoStore(s => s.dashboardInfo.id);
+  const dashboardId = useDashboardId();
   const [undoFormValues, setUndoFormValues] = useState<Record<
     string,
     any

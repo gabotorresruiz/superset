@@ -22,9 +22,9 @@ import { URL_PARAMS } from 'src/constants';
 import { getUrlParam } from 'src/utils/urlUtils';
 import { RootState } from 'src/dashboard/types';
 import {
-  useDashboardInfoStore,
   useNativeFiltersBarOpen,
   setNativeFiltersBarOpen,
+  useCanEditDashboard,
 } from 'src/dashboard/stores';
 import { isFeatureEnabled, FeatureFlag } from '@superset-ui/core';
 import {
@@ -39,7 +39,7 @@ export const useNativeFilters = () => {
   const showNativeFilters = useSelector<RootState, boolean>(
     () => getUrlParam(URL_PARAMS.showFilters) ?? true,
   );
-  const canEdit = useDashboardInfoStore(s => s.dashboardInfo.dash_edit_perm);
+  const canEdit = useCanEditDashboard();
   const dashboardFiltersOpen = useNativeFiltersBarOpen() ?? false;
 
   const filters = useFilters();

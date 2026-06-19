@@ -44,7 +44,7 @@ import {
 } from '@superset-ui/core/components';
 import { propertyComparator } from '@superset-ui/core/components/Select/utils';
 import { useDataMaskStore } from 'src/dataMask/useDataMaskStore';
-import { useDashboardInfoStore } from 'src/dashboard/stores';
+import { setPendingChartCustomization } from 'src/dashboard/stores';
 import { TooltipWithTruncation } from 'src/dashboard/components/nativeFilters/FilterCard/TooltipWithTruncation';
 import { useToasts } from 'src/components/MessageToasts/withToasts';
 import { useDatasetMetadata } from 'src/dashboard/queries';
@@ -407,7 +407,7 @@ const GroupByFilterCard: FC<GroupByFilterCardProps> = ({
           ] as [Partial<NativeFilterTarget>])
         : ([{}] as [Partial<NativeFilterTarget>]);
 
-      useDashboardInfoStore.getState().setPendingChartCustomization({
+      setPendingChartCustomization({
         ...customizationItem,
         targets,
       });

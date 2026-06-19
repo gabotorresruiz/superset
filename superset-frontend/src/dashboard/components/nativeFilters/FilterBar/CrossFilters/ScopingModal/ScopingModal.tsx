@@ -26,7 +26,10 @@ import {
   GLOBAL_SCOPE_POINTER,
   ChartCrossFiltersConfig,
 } from 'src/dashboard/types';
-import { useDashboardInfoStore } from 'src/dashboard/stores';
+import {
+  useChartConfiguration,
+  useGlobalChartConfiguration,
+} from 'src/dashboard/stores';
 import { getChartIdsInFilterScope } from 'src/dashboard/util/getChartIdsInFilterScope';
 import { useChartIds } from 'src/dashboard/util/charts/useChartIds';
 import { useSaveChartConfiguration } from 'src/dashboard/queries';
@@ -85,9 +88,7 @@ export const ScopingModal = ({
   const chartLayoutItems = useChartLayoutItems();
   const chartIds = useChartIds();
   const [currentChartId, setCurrentChartId] = useState(initialChartId);
-  const chartConfig = useDashboardInfoStore(
-    s => s.dashboardInfo.metadata?.chart_configuration,
-  );
+  const chartConfig = useChartConfiguration();
   const initialChartConfig = chartConfig || EMPTY_CHART_CONFIG;
   const defaultGlobalChartConfig = useMemo(
     () => ({
@@ -97,9 +98,7 @@ export const ScopingModal = ({
     [chartIds],
   );
 
-  const storedGlobalChartConfig = useDashboardInfoStore(
-    s => s.dashboardInfo.metadata?.global_chart_configuration,
-  );
+  const storedGlobalChartConfig = useGlobalChartConfiguration();
   const initialGlobalChartConfig =
     storedGlobalChartConfig || defaultGlobalChartConfig;
 

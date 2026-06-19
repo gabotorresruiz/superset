@@ -39,6 +39,7 @@ export {
   selectCrossFiltersEnabled,
 } from './dashboardInfo';
 export * from './dashboardInfo/hooks';
+export * from './dashboardInfo/actions';
 export type { DashboardInfoStore, DashboardInfoData } from './dashboardInfo';
 
 export {

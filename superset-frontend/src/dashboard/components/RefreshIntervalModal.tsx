@@ -21,7 +21,10 @@ import { t } from '@apache-superset/core/translation';
 import { styled } from '@apache-superset/core/theme';
 import { Form, Checkbox } from '@superset-ui/core/components';
 import { StandardModal } from 'src/components/Modal';
-import { useDashboardInfoStore } from 'src/dashboard/stores';
+import {
+  useRefreshLimit,
+  useRefreshWarningMessage,
+} from 'src/dashboard/stores';
 import {
   RefreshFrequencySelect,
   validateRefreshFrequency,
@@ -64,16 +67,8 @@ const RefreshIntervalModal = ({
   const [refreshFrequency, setRefreshFrequency] = useState(initialFrequency);
   const [localPauseOnInactiveTab, setLocalPauseOnInactiveTab] =
     useState(pauseOnInactiveTab);
-  const refreshLimit = useDashboardInfoStore(
-    s =>
-      s.dashboardInfo?.common?.conf
-        ?.SUPERSET_DASHBOARD_PERIODICAL_REFRESH_LIMIT,
-  );
-  const refreshWarning = useDashboardInfoStore(
-    s =>
-      s.dashboardInfo?.common?.conf
-        ?.SUPERSET_DASHBOARD_PERIODICAL_REFRESH_WARNING_MESSAGE,
-  );
+  const refreshLimit = useRefreshLimit();
+  const refreshWarning = useRefreshWarningMessage();
   const refreshErrors = useMemo(
     () => validateRefreshFrequency(refreshFrequency, refreshLimit),
     [refreshFrequency, refreshLimit],

@@ -56,8 +56,8 @@ import {
 } from 'src/dashboard/components/nativeFilters/state';
 import { FilterBarOrientation } from 'src/dashboard/types';
 import {
-  useDashboardInfoStore,
   useFilterBarOrientation,
+  setPendingChartCustomization,
 } from 'src/dashboard/stores';
 import {
   DropdownContainer,
@@ -240,7 +240,7 @@ const FilterControls: FC<FilterControlsProps> = ({
       const columnValue = dataMask.ownState?.column;
       const existingTarget = customizationItem.targets?.[0] || {};
 
-      useDashboardInfoStore.getState().setPendingChartCustomization({
+      setPendingChartCustomization({
         ...customizationItem,
         targets: [
           {

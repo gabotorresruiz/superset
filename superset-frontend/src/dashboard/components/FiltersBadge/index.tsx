@@ -36,8 +36,8 @@ import { Icons } from '@superset-ui/core/components/Icons';
 import { useChartLayoutItems } from 'src/dashboard/util/useChartLayoutItems';
 import {
   useNativeFiltersStore,
-  useDashboardInfoStore,
   setDirectPathToChild,
+  useChartConfiguration,
 } from 'src/dashboard/stores';
 import { useDataMaskStore } from 'src/dataMask/useDataMaskStore';
 import { Badge } from '@superset-ui/core/components';
@@ -115,9 +115,7 @@ export const FiltersBadge = ({ chartId }: FiltersBadgeProps) => {
     RootState['dashboardFilters']
   >(state => state.dashboardFilters);
   const nativeFilters = useNativeFiltersStore(s => s.filters);
-  const chartConfiguration = useDashboardInfoStore(
-    s => s.dashboardInfo.metadata?.chart_configuration,
-  );
+  const chartConfiguration = useChartConfiguration();
   const chart = useSelector<RootState, Chart>(state => state.charts[chartId]);
   const chartLayoutItems = useChartLayoutItems();
   const dataMask = useDataMaskStore(s => s.dataMask);

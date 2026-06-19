@@ -38,10 +38,11 @@ import {
 import { onRefresh } from 'src/dashboard/actions/dashboardState';
 import {
   useDashboardLayoutStore,
-  useDashboardInfoStore,
   useLastRefreshTime,
   useTabActivationTime,
   setEditMode,
+  useCanEditDashboard,
+  useDashboardInfo,
 } from 'src/dashboard/stores';
 import getChartIdsFromComponent from 'src/dashboard/util/getChartIdsFromComponent';
 import DashboardComponent from 'src/dashboard/containers/DashboardComponent';
@@ -162,11 +163,11 @@ interface DragDropChildProps {
 
 const Tab = (props: TabProps): ReactElement => {
   const dispatch = useDispatch();
-  const canEdit = useDashboardInfoStore(s => s.dashboardInfo.dash_edit_perm);
+  const canEdit = useCanEditDashboard();
   const dashboardLayout = useDashboardLayoutStore(s => s.layout);
   const lastRefreshTime = useLastRefreshTime();
   const tabActivationTime = useTabActivationTime(props.id);
-  const dashboardInfo = useDashboardInfoStore(s => s.dashboardInfo);
+  const dashboardInfo = useDashboardInfo();
   const isAutoRefreshing = useIsAutoRefreshing();
   const isRefreshInFlight = useIsRefreshInFlight();
 

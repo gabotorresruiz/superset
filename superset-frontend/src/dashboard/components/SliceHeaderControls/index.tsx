@@ -55,7 +55,7 @@ import { ResultsPaneOnDashboard } from 'src/explore/components/DataTablesPane';
 import { useDrillDetailMenuItems } from 'src/components/Chart/useDrillDetailMenuItems';
 import { LOG_ACTIONS_CHART_DOWNLOAD_AS_IMAGE } from 'src/logger/LogUtils';
 import { MenuKeys } from 'src/dashboard/types';
-import { useDashboardInfoStore } from 'src/dashboard/stores';
+import { useCanEditDashboard } from 'src/dashboard/stores';
 import DrillDetailModal from 'src/components/Chart/DrillDetail/DrillDetailModal';
 import { usePermissions } from 'src/hooks/usePermissions';
 import { useDatasetDrillInfo } from 'src/hooks/apiResources/datasets';
@@ -180,7 +180,7 @@ const SliceHeaderControls = (
   const theme = useTheme();
 
   const canEditCrossFilters =
-    useDashboardInfoStore(s => s.dashboardInfo.dash_edit_perm) &&
+    useCanEditDashboard() &&
     getChartMetadataRegistry()
       .get(props.slice.viz_type)
       ?.behaviors?.includes(Behavior.InteractiveChart);

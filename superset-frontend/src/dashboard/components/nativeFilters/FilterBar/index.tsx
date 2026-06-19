@@ -57,7 +57,13 @@ import { useTabId } from 'src/hooks/useTabId';
 import { logEvent } from 'src/logger/actions';
 import { LOG_ACTIONS_CHANGE_DASHBOARD_FILTER } from 'src/logger/LogUtils';
 import { FilterBarOrientation, RootState } from 'src/dashboard/types';
-import { useDashboardInfoStore } from 'src/dashboard/stores';
+import {
+  useDashboardId,
+  useCanEditDashboard,
+  usePendingChartCustomizations,
+  clearAllPendingChartCustomizations,
+  clearAllChartCustomizations,
+} from 'src/dashboard/stores';
 import { UserWithPermissionsAndRoles } from 'src/types/bootstrapTypes';
 import { isChartCustomization } from '../FiltersConfigModal/utils';
 import { checkIsApplyDisabled, getFiltersToApply } from './utils';
@@ -194,9 +200,9 @@ const FilterBar: FC<FiltersBarProps> = ({
     () => filterValues.filter(isNativeFilter),
     [filterValues],
   );
-  const dashboardId = useDashboardInfoStore(s => s.dashboardInfo?.id);
+  const dashboardId = useDashboardId();
   const previousDashboardId = usePrevious(dashboardId);
-  const canEdit = useDashboardInfoStore(s => s.dashboardInfo.dash_edit_perm);
+  const canEdit = useCanEditDashboard();
   const user: UserWithPermissionsAndRoles = useSelector<
     RootState,
     UserWithPermissionsAndRoles
@@ -405,9 +411,7 @@ const FilterBar: FC<FiltersBarProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dashboardId, dataMaskAppliedText, history, updateKey, tabId]);
 
-  const pendingChartCustomizations = useDashboardInfoStore(
-    s => s.dashboardInfo.pendingChartCustomizations,
-  );
+  const pendingChartCustomizations = usePendingChartCustomizations();
 
   const handlePendingCustomizationDataMaskChange = useCallback(
     (customizationId: string, dataMask: DataMask) => {
@@ -463,7 +467,7 @@ const FilterBar: FC<FiltersBarProps> = ({
           deletedIds: [],
         });
       }
-      useDashboardInfoStore.getState().clearAllPendingChartCustomizations();
+      clearAllPendingChartCustomizations();
       setPendingCustomizationDataMasks({});
     } else if (hasClearedChartCustomizations) {
       const clearedChartCustomizations = chartCustomizationValues.map(item => ({
@@ -479,7 +483,7 @@ const FilterBar: FC<FiltersBarProps> = ({
         dispatch(removeDataMask(item.id));
       });
 
-      useDashboardInfoStore.getState().clearAllChartCustomizations();
+      clearAllChartCustomizations();
 
       saveChartCustomization({
         modifiedCustomizations: clearedChartCustomizations,
@@ -556,7 +560,7 @@ const FilterBar: FC<FiltersBarProps> = ({
         });
       });
 
-      useDashboardInfoStore.getState().clearAllPendingChartCustomizations();
+      clearAllPendingChartCustomizations();
       setPendingCustomizationDataMasks({});
       setHasClearedChartCustomizations(true);
     }

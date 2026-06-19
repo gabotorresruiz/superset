@@ -20,8 +20,9 @@ import { useCallback, useMemo } from 'react';
 import {
   useDashboardLayoutStore,
   useNativeFiltersStore,
-  useDashboardInfoStore,
   useActiveTabs,
+  useNativeFilterConfiguration,
+  useChartCustomizationConfig,
 } from 'src/dashboard/stores';
 import {
   Filter,
@@ -63,9 +64,7 @@ function selectFilterConfiguration(
 }
 
 export function useFilterConfiguration() {
-  const nativeFilterConfig = useDashboardInfoStore(
-    s => s.dashboardInfo?.metadata?.native_filter_configuration,
-  );
+  const nativeFilterConfig = useNativeFilterConfiguration();
   return useMemo(
     () => selectFilterConfiguration(nativeFilterConfig),
     [nativeFilterConfig],
@@ -119,9 +118,7 @@ function filterCustomizationsForDashboard(
 }
 
 export function useChartCustomizationConfiguration() {
-  const allCustomizations = useDashboardInfoStore(
-    s => s.dashboardInfo?.metadata?.chart_customization_config || EMPTY_ARRAY,
-  );
+  const allCustomizations = useChartCustomizationConfig() || EMPTY_ARRAY;
   const dashboardLayout = useDashboardLayoutStore(s => s.layout);
   return useMemo(() => {
     const dashboardChartIds = new Set(
