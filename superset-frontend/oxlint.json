@@ -323,10 +323,10 @@
             "patterns": [
               {
                 "group": [
-                  "**/stores/*/useDashboard*Store",
-                  "**/stores/*/useNativeFiltersStore"
+                  "**/dashboard/stores/*",
+                  "**/dashboard/stores/*/**"
                 ],
-                "message": "Dashboard components must use the domain hooks/actions from 'src/dashboard/stores', not the raw Zustand store modules."
+                "message": "Dashboard components must import client-state hooks/actions from the 'src/dashboard/stores' barrel only — not its submodules, per-store barrels, or the raw Zustand store files."
               }
             ]
           }
