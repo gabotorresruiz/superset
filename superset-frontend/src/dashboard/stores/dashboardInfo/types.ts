@@ -17,10 +17,21 @@
  * under the License.
  */
 
-export {
-  useDashboardInfoStore,
-  selectFilterBarOrientation,
-  selectCrossFiltersEnabled,
-} from './useDashboardInfoStore';
-export * from './hooks';
-export type { DashboardInfoStore, DashboardInfoData } from './types';
+import type { DashboardInfo } from 'src/dashboard/types';
+import type { CoreSlice } from './slices/coreSlice';
+import type { FilterSettingsSlice } from './slices/filterSettingsSlice';
+import type { ChartCustomizationSlice } from './slices/chartCustomizationSlice';
+
+/**
+ * Loose shape for hydration input: the payload attaches permission flags
+ * (superset_can_explore, superset_can_share, …) that are not part of the
+ * DashboardInfo type, and may be partial.
+ */
+export type DashboardInfoData = Partial<DashboardInfo> & {
+  last_modified_time?: number;
+  [key: string]: unknown;
+};
+
+export type DashboardInfoStore = CoreSlice &
+  FilterSettingsSlice &
+  ChartCustomizationSlice;
