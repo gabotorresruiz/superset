@@ -37,7 +37,12 @@ const mockStoreForCustomization = {
   ...stateWithoutNativeFilters,
   dashboardInfo: {
     ...stateWithoutNativeFilters.dashboardInfo,
-    filterBarOrientation: FilterBarOrientation.Vertical,
+    // Orientation is denormalized into metadata; the migrated component reads it
+    // via selectFilterBarOrientation (metadata.filter_bar_orientation).
+    metadata: {
+      ...stateWithoutNativeFilters.dashboardInfo.metadata,
+      filter_bar_orientation: FilterBarOrientation.Vertical,
+    },
   },
 };
 
@@ -110,21 +115,14 @@ test('renders multiple chart customization dividers in vertical mode', () => {
 });
 
 test('renders chart customization divider in horizontal mode', () => {
-  const horizontalStore = {
-    ...mockStoreForCustomization,
+  useDashboardInfoStore.setState({
     dashboardInfo: {
       ...mockStoreForCustomization.dashboardInfo,
-      filterBarOrientation: FilterBarOrientation.Horizontal,
-    },
-  };
-
-  const { useSelector } = jest.requireMock('react-redux');
-  useSelector.mockImplementation(
-    (selector: (state: typeof horizontalStore) => unknown) =>
-      selector(horizontalStore),
-  );
-  useDashboardInfoStore.setState({
-    dashboardInfo: horizontalStore.dashboardInfo as unknown as DashboardInfo,
+      metadata: {
+        ...mockStoreForCustomization.dashboardInfo.metadata,
+        filter_bar_orientation: FilterBarOrientation.Horizontal,
+      },
+    } as unknown as DashboardInfo,
   });
 
   const divider: ChartCustomizationDivider = {
@@ -142,6 +140,11 @@ test('renders chart customization divider in horizontal mode', () => {
   expect(
     screen.getByRole('heading', { name: 'Horizontal Divider' }),
   ).toBeInTheDocument();
+  // Proves it actually rendered in horizontal mode: horizontal dividers show
+  // the description as a tooltip icon (divider-description-icon), whereas
+  // vertical dividers render it inline (divider-description).
+  expect(screen.getByTestId('divider-description-icon')).toBeInTheDocument();
+  expect(screen.queryByTestId('divider-description')).not.toBeInTheDocument();
 });
 
 test('does not render removed chart customization dividers', () => {
