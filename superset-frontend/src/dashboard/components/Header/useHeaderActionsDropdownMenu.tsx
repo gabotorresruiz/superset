@@ -19,7 +19,7 @@
 import type { Dispatch, ReactElement, SetStateAction } from 'react';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useHistory, useLocation } from 'react-router-dom';
-import { useDashboardStateStore } from 'src/dashboard/stores';
+import { useDirectPathToChild } from 'src/dashboard/stores';
 import { Menu, MenuItem } from '@superset-ui/core/components/Menu';
 import { t } from '@apache-superset/core/translation';
 import { isEmpty } from 'lodash';
@@ -76,7 +76,7 @@ export const useHeaderActionsMenu = ({
   const { canExportImage } = usePermissions();
   const history = useHistory();
   const location = useLocation();
-  const directPathToChild = useDashboardStateStore(s => s.directPathToChild);
+  const directPathToChild = useDirectPathToChild();
 
   useEffect(() => {
     if (customCss) {

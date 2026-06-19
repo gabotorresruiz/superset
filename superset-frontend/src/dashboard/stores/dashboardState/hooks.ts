@@ -47,6 +47,14 @@ export const useDashboardIsSaving = (): boolean =>
 export const useFullSizeChartId = (): number | null =>
   useDashboardStateStore(s => s.fullSizeChartId);
 
+/** Whether the dashboard is published. */
+export const useIsPublished = (): boolean =>
+  useDashboardStateStore(s => !!s.isPublished);
+
+/** Whether the undo-history cap has been exceeded. */
+export const useMaxUndoHistoryExceeded = (): boolean =>
+  useDashboardStateStore(s => s.maxUndoHistoryExceeded);
+
 /** The dashboard's chart (slice) ids. */
 export const useSliceIds = (): number[] =>
   useDashboardStateStore(s => s.sliceIds);
@@ -102,6 +110,10 @@ export const useIsFiltersRefreshing = (): boolean =>
 /** Auto-refresh frequency, in seconds (0 = off). */
 export const useRefreshFrequency = (): number =>
   useDashboardStateStore(s => s.refreshFrequency);
+
+/** Whether the refresh frequency should persist to the saved dashboard. */
+export const useShouldPersistRefreshFrequency = (): boolean =>
+  useDashboardStateStore(s => s.shouldPersistRefreshFrequency);
 
 /** Timestamp of the last manual refresh. */
 export const useLastRefreshTime = (): number =>

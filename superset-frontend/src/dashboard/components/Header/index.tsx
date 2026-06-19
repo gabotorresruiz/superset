@@ -83,9 +83,24 @@ import {
 } from '../../actions/dashboardState';
 import { useStore } from 'zustand';
 import {
-  useDashboardStateStore,
   useDashboardLayoutStore,
   useDashboardInfoStore,
+  useEditMode,
+  useIsPublished,
+  useHasUnsavedChanges,
+  useExpandedSlices,
+  useRefreshFrequency,
+  useShouldPersistRefreshFrequency,
+  useColorNamespace,
+  useColorScheme,
+  useIsStarred,
+  useMaxUndoHistoryExceeded,
+  useUpdatedColorScheme,
+  useLastModifiedTime,
+  setHasUnsavedChanges,
+  setRefreshFrequency,
+  setMaxUndoHistoryExceeded,
+  setEditMode,
 } from 'src/dashboard/stores';
 import {
   flagTitleUnsavedChanges,
@@ -214,26 +229,22 @@ const Header = (): JSX.Element => {
   const user = useSelector((state: HeaderRootState) => state.user);
   const chartIds = useChartIds();
 
-  const editMode = useDashboardStateStore(s => s.editMode);
-  const isPublished = useDashboardStateStore(s => !!s.isPublished);
-  const hasUnsavedChanges = useDashboardStateStore(s => s.hasUnsavedChanges);
+  const editMode = useEditMode();
+  const isPublished = useIsPublished();
+  const hasUnsavedChanges = useHasUnsavedChanges();
   const customCss = useDashboardInfoStore(s => s.dashboardInfo.css ?? '');
-  const expandedSlices = useDashboardStateStore(s => s.expandedSlices);
-  const refreshFrequency = useDashboardStateStore(s => s.refreshFrequency);
-  const shouldPersistRefreshFrequency = useDashboardStateStore(
-    s => s.shouldPersistRefreshFrequency,
-  );
-  const colorNamespace = useDashboardStateStore(s => s.colorNamespace);
-  const colorScheme = useDashboardStateStore(s => s.colorScheme);
-  const isStarred = useDashboardStateStore(s => s.isStarred);
+  const expandedSlices = useExpandedSlices();
+  const refreshFrequency = useRefreshFrequency();
+  const shouldPersistRefreshFrequency = useShouldPersistRefreshFrequency();
+  const colorNamespace = useColorNamespace();
+  const colorScheme = useColorScheme();
+  const isStarred = useIsStarred();
   const showFaveStar = Boolean(user?.userId && dashboardInfo?.id);
   useFavoriteStatus(dashboardInfo.id, showFaveStar);
   const { mutate: toggleFavorite } = useToggleFavorite(dashboardInfo.id);
-  const maxUndoHistoryExceeded = useDashboardStateStore(
-    s => s.maxUndoHistoryExceeded,
-  );
-  const updatedColorScheme = useDashboardStateStore(s => s.updatedColorScheme);
-  const lastModifiedTime = useDashboardStateStore(s => s.lastModifiedTime);
+  const maxUndoHistoryExceeded = useMaxUndoHistoryExceeded();
+  const updatedColorScheme = useUpdatedColorScheme();
+  const lastModifiedTime = useLastModifiedTime();
   const isLoading = useSelector((state: HeaderRootState) =>
     Object.values(state.charts).some(chart => {
       const start = chart.chartUpdateStartTime ?? 0;
@@ -260,12 +271,12 @@ const Header = (): JSX.Element => {
       !maxUndoHistoryExceeded &&
       !updatedColorScheme
     ) {
-      useDashboardStateStore.getState().setHasUnsavedChanges(false);
+      setHasUnsavedChanges(false);
     }
   }, [maxUndoHistoryExceeded, updatedColorScheme]);
   const onRedo = useCallback(() => {
     useDashboardLayoutStore.temporal.getState().redo();
-    useDashboardStateStore.getState().setHasUnsavedChanges(true);
+    setHasUnsavedChanges(true);
   }, []);
   const clearDashboardHistory = useCallback(() => {
     useDashboardLayoutStore.temporal.getState().clear();
@@ -313,14 +324,14 @@ const Header = (): JSX.Element => {
     autoRefreshMode,
     isLoading,
     onRefresh: boundActionCreators.onRefresh,
-    setRefreshFrequency: useDashboardStateStore.getState().setRefreshFrequency,
+    setRefreshFrequency,
     logEvent: boundActionCreators.logEvent,
   });
 
   // Track theme changes as unsaved changes, and sync ref when navigating between dashboards
   useEffect(() => {
     if (editMode && dashboardInfo.theme !== previousThemeRef.current) {
-      useDashboardStateStore.getState().setHasUnsavedChanges(true);
+      setHasUnsavedChanges(true);
     }
     previousThemeRef.current = dashboardInfo.theme;
   }, [dashboardInfo.theme, editMode]);
@@ -331,7 +342,7 @@ const Header = (): JSX.Element => {
       boundActionCreators.maxUndoHistoryToast();
     }
     if (undoLength > UNDO_LIMIT && !maxUndoHistoryExceeded) {
-      useDashboardStateStore.getState().setMaxUndoHistoryExceeded(true);
+      setMaxUndoHistoryExceeded(true);
     }
   }, [
     boundActionCreators,
@@ -356,7 +367,7 @@ const Header = (): JSX.Element => {
     (nextText: string) => {
       if (nextText && dashboardTitle !== nextText) {
         updateDashboardTitle(nextText);
-        useDashboardStateStore.getState().setHasUnsavedChanges(true);
+        setHasUnsavedChanges(true);
       }
     },
     [dashboardTitle, updateDashboardTitle],
@@ -402,7 +413,7 @@ const Header = (): JSX.Element => {
     boundActionCreators.logEvent(LOG_ACTIONS_TOGGLE_EDIT_DASHBOARD, {
       edit_mode: !editMode,
     });
-    useDashboardStateStore.getState().setEditMode(!editMode);
+    setEditMode(!editMode);
   }, [boundActionCreators, editMode]);
 
   const performInPlaceDiscard = useDiscardChanges(dashboardInfo.id);
@@ -417,7 +428,7 @@ const Header = (): JSX.Element => {
   const discardChanges = useCallback(() => {
     const doDiscard = () => {
       if (performInPlaceDiscard()) {
-        useDashboardStateStore.getState().setEditMode(false);
+        setEditMode(false);
       } else {
         discardChangesViaReload();
       }
@@ -595,11 +606,11 @@ const Header = (): JSX.Element => {
         ...(updates.theme !== undefined && { theme: updates.theme }),
         css: updates.css,
       });
-      useDashboardStateStore.getState().setHasUnsavedChanges(true);
+      setHasUnsavedChanges(true);
 
       if (updates.title && dashboardTitle !== updates.title) {
         updateDashboardTitle(updates.title);
-        useDashboardStateStore.getState().setHasUnsavedChanges(true);
+        setHasUnsavedChanges(true);
       }
     },
     [dashboardTitle, updateDashboardTitle],
@@ -607,9 +618,7 @@ const Header = (): JSX.Element => {
 
   const handleRefreshChange = useCallback(
     (refreshFrequency: number, editMode: boolean) => {
-      useDashboardStateStore
-        .getState()
-        .setRefreshFrequency(refreshFrequency, !!editMode);
+      setRefreshFrequency(refreshFrequency, !!editMode);
     },
     [],
   );
@@ -617,7 +626,7 @@ const Header = (): JSX.Element => {
   const handleEnterEditMode = useCallback(() => {
     toggleEditMode();
     clearDashboardHistory();
-    useDashboardStateStore.getState().setHasUnsavedChanges(false);
+    setHasUnsavedChanges(false);
   }, [toggleEditMode, clearDashboardHistory]);
 
   const NavExtension = extensionsRegistry.get('dashboard.nav.right');
