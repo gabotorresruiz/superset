@@ -30,8 +30,9 @@ import { CopyToClipboard } from 'src/components';
 import { getDashboardPermalink } from 'src/utils/urlUtils';
 import { useToasts } from 'src/components/MessageToasts/withToasts';
 import {
-  useDashboardStateStore,
   useDashboardSlicesStore,
+  useActiveTabs,
+  useChartStates,
 } from 'src/dashboard/stores';
 import { useDataMaskStore } from 'src/dataMask/useDataMaskStore';
 import { Typography } from '@superset-ui/core/components/Typography';
@@ -55,8 +56,8 @@ export default function URLShortLinkButton({
   const theme = useTheme();
   const [shortUrl, setShortUrl] = useState('');
   const { addDangerToast } = useToasts();
-  const activeTabs = useDashboardStateStore(s => s.activeTabs);
-  const chartStates = useDashboardStateStore(s => s.chartStates);
+  const activeTabs = useActiveTabs();
+  const chartStates = useChartStates();
   const sliceEntities = useDashboardSlicesStore(s => s.slices);
   const dataMask = useDataMaskStore(s => s.dataMask);
 

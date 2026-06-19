@@ -19,7 +19,7 @@
 import { RefObject, useEffect, useRef, KeyboardEvent } from 'react';
 
 import { t } from '@apache-superset/core/translation';
-import { useDashboardStateStore } from 'src/dashboard/stores';
+import { useActiveTabs } from 'src/dashboard/stores';
 import { useTheme } from '@apache-superset/core/theme';
 import { List, Popover } from '@superset-ui/core/components';
 import {
@@ -52,7 +52,7 @@ const DetailsPanelPopover = ({
   popoverTriggerRef,
   setPopoverVisible,
 }: DetailsPanelProps) => {
-  const activeTabs = useDashboardStateStore(s => s.activeTabs);
+  const activeTabs = useActiveTabs();
   // Combined ref array for all filter indicator elements
   const indicatorRefs = useRef<(HTMLButtonElement | null)[]>([]);
 

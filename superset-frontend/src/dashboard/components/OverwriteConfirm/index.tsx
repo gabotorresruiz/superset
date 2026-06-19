@@ -17,14 +17,12 @@
  * under the License.
  */
 import { AsyncEsmComponent } from '@superset-ui/core/components';
-import { useDashboardStateStore } from 'src/dashboard/stores';
+import { useOverwriteConfirmMetadata } from 'src/dashboard/stores';
 
 const Modal = AsyncEsmComponent(() => import('./OverwriteConfirmModal'));
 
 const OverrideConfirm = () => {
-  const overwriteConfirmMetadata = useDashboardStateStore(
-    s => s.overwriteConfirmMetadata,
-  );
+  const overwriteConfirmMetadata = useOverwriteConfirmMetadata();
 
   return (
     <>

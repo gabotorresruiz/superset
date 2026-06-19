@@ -37,7 +37,7 @@ import { useChartLayoutItems } from 'src/dashboard/util/useChartLayoutItems';
 import {
   useNativeFiltersStore,
   useDashboardInfoStore,
-  useDashboardStateStore,
+  setDirectPathToChild,
 } from 'src/dashboard/stores';
 import { useDataMaskStore } from 'src/dataMask/useDataMaskStore';
 import { Badge } from '@superset-ui/core/components';
@@ -133,7 +133,7 @@ export const FiltersBadge = ({ chartId }: FiltersBadgeProps) => {
   const popoverTriggerRef = useRef<HTMLDivElement>(null);
 
   const onHighlightFilterSource = useCallback((path: string[]) => {
-    useDashboardStateStore.getState().setDirectPathToChild(path);
+    setDirectPathToChild(path);
   }, []);
 
   const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {

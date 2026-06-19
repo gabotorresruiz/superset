@@ -23,7 +23,7 @@ import ReactDiffViewer from 'react-diff-viewer-continued';
 import { useInView } from 'react-intersection-observer';
 import { Button, Modal } from '@superset-ui/core/components';
 import { DashboardState } from 'src/dashboard/types';
-import { useDashboardStateStore } from 'src/dashboard/stores';
+import { setOverwriteConfirmMetadata } from 'src/dashboard/stores';
 import { saveDashboardRequest } from 'src/dashboard/actions/dashboardState';
 import { t } from '@apache-superset/core/translation';
 import { styled } from '@apache-superset/core/theme';
@@ -90,11 +90,7 @@ type Props = {
 const OverrideConfirmModal = ({ overwriteConfirmMetadata }: Props) => {
   const [bottomRef, hasReviewed] = useInView({ triggerOnce: true });
   const dispatch = useDispatch();
-  const onHide = useCallback(
-    () =>
-      useDashboardStateStore.getState().setOverwriteConfirmMetadata(undefined),
-    [],
-  );
+  const onHide = useCallback(() => setOverwriteConfirmMetadata(undefined), []);
   const anchors = useMemo<RefObject<HTMLDivElement>[]>(
     () =>
       overwriteConfirmMetadata

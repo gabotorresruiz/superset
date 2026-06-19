@@ -48,10 +48,7 @@ import {
   useThemes,
   useSaveDashboardProperties,
 } from 'src/dashboard/queries';
-import {
-  useDashboardStateStore,
-  useDashboardInfoStore,
-} from 'src/dashboard/stores';
+import { useDashboardInfoStore, setColorScheme } from 'src/dashboard/stores';
 import { setDashboardMetadata } from 'src/dashboard/actions/dashboardState';
 import { areObjectsEqual } from 'src/reduxUtils';
 import { StandardModal, useModalValidation } from 'src/components/Modal';
@@ -282,9 +279,7 @@ const PropertiesModal = ({
       useDashboardInfoStore
         .getState()
         .setDashboardInfo({ css: originalCss.current });
-      useDashboardStateStore
-        .getState()
-        .setColorScheme(originalDashboardMetadata.current.color_scheme ?? '');
+      setColorScheme(originalDashboardMetadata.current.color_scheme ?? '');
     }
     onHide();
   };
@@ -308,7 +303,7 @@ const PropertiesModal = ({
     jsonMetadataObj.label_colors = jsonMetadataObj.label_colors || {};
 
     setCurrentColorScheme(colorScheme);
-    useDashboardStateStore.getState().setColorScheme(colorScheme);
+    setColorScheme(colorScheme);
 
     // update metadata to match selection
     if (updateMetadata) {

@@ -31,8 +31,9 @@ import EmbedCodeContent from 'src/explore/components/EmbedCodeContent';
 import { ModalTrigger } from '@superset-ui/core/components';
 import { MenuKeys } from 'src/dashboard/types';
 import {
-  useDashboardStateStore,
   useDashboardSlicesStore,
+  useActiveTabs,
+  useChartStates,
 } from 'src/dashboard/stores';
 import { useDataMaskStore } from 'src/dataMask/useDataMaskStore';
 import { hasStatefulCharts } from 'src/dashboard/util/chartStateConverter';
@@ -81,8 +82,8 @@ export const useShareMenuItems = (props: ShareMenuItemProps): MenuItem => {
   );
   const isEmbedCodeEnabled = isFeatureEnabled(FeatureFlag.EmbeddableCharts);
 
-  const activeTabs = useDashboardStateStore(s => s.activeTabs);
-  const chartStates = useDashboardStateStore(s => s.chartStates);
+  const activeTabs = useActiveTabs();
+  const chartStates = useChartStates();
   const sliceEntities = useDashboardSlicesStore(s => s.slices);
   const dataMask = useDataMaskStore(s => s.dataMask);
 
