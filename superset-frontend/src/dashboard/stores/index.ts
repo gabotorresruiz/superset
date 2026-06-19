@@ -29,6 +29,8 @@ export {
   useDashboardLayoutStore,
   useHandleComponentDrop,
 } from './dashboardLayout';
+export * from './dashboardLayout/hooks';
+export * from './dashboardLayout/actions';
 
 export { useDashboardSlicesStore } from './dashboardSlices';
 export type { DashboardSlicesStore } from './dashboardSlices';

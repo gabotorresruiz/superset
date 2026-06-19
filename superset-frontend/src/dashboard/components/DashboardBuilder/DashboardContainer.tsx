@@ -31,7 +31,7 @@ import {
 import { useDispatch, useSelector, shallowEqual } from 'react-redux';
 import { createSelector } from '@reduxjs/toolkit';
 import {
-  useDashboardLayoutStore,
+  useDashboardLayout,
   useDirectPathToChild,
   useDashboardInfo,
   useChartCustomizationConfig,
@@ -149,7 +149,7 @@ const EMPTY_CUSTOMIZATIONS: ChartCustomizationConfiguration = [];
 const DashboardContainer: FC<DashboardContainerProps> = ({ topLevelTabs }) => {
   const dispatch = useDispatch();
 
-  const dashboardLayout = useDashboardLayoutStore(s => s.layout);
+  const dashboardLayout = useDashboardLayout();
   const dashboardInfo = useDashboardInfo();
   const filterItems = useFilterConfiguration();
   const chartCustomizations =

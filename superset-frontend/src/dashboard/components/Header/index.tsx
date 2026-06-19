@@ -81,9 +81,15 @@ import {
   onRefresh,
   saveDashboardRequest,
 } from '../../actions/dashboardState';
-import { useStore } from 'zustand';
 import {
-  useDashboardLayoutStore,
+  useDashboardLayout,
+  useUndoLength,
+  useRedoLength,
+  undoLayout,
+  redoLayout,
+  clearLayoutHistory,
+  getUndoLength,
+  updateDashboardTitle as updateDashboardTitleAction,
   useDashboardInfo,
   useCustomCss,
   useEditMode,
@@ -218,16 +224,10 @@ const Header = (): JSX.Element => {
   const [currentReportDeleting, setCurrentReportDeleting] =
     useState<AlertObject | null>(null);
   const dashboardInfo = useDashboardInfo();
-  const layout = useDashboardLayoutStore(s => s.layout);
+  const layout = useDashboardLayout();
   // Undo/redo history lives in the zundo temporal store.
-  const undoLength = useStore(
-    useDashboardLayoutStore.temporal,
-    s => s.pastStates.length,
-  );
-  const redoLength = useStore(
-    useDashboardLayoutStore.temporal,
-    s => s.futureStates.length,
-  );
+  const undoLength = useUndoLength();
+  const redoLength = useRedoLength();
   const user = useSelector((state: HeaderRootState) => state.user);
   const chartIds = useChartIds();
 
@@ -267,9 +267,9 @@ const Header = (): JSX.Element => {
   const themeId = dashboardInfo.theme ? dashboardInfo.theme.id : null;
   // Undo/redo + history run on the zundo temporal store, not redux-undo.
   const onUndo = useCallback(() => {
-    useDashboardLayoutStore.temporal.getState().undo();
+    undoLayout();
     if (
-      useDashboardLayoutStore.temporal.getState().pastStates.length === 0 &&
+      getUndoLength() === 0 &&
       !maxUndoHistoryExceeded &&
       !updatedColorScheme
     ) {
@@ -277,14 +277,14 @@ const Header = (): JSX.Element => {
     }
   }, [maxUndoHistoryExceeded, updatedColorScheme]);
   const onRedo = useCallback(() => {
-    useDashboardLayoutStore.temporal.getState().redo();
+    redoLayout();
     setHasUnsavedChanges(true);
   }, []);
   const clearDashboardHistory = useCallback(() => {
-    useDashboardLayoutStore.temporal.getState().clear();
+    clearLayoutHistory();
   }, []);
   const updateDashboardTitle = useCallback((text: string) => {
-    useDashboardLayoutStore.getState().updateDashboardTitle(text);
+    updateDashboardTitleAction(text);
   }, []);
 
   const boundActionCreators = useMemo(

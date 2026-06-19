@@ -19,9 +19,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ErrorInfo } from 'react';
 import { connect } from 'react-redux';
-import { useStore } from 'zustand';
 import cx from 'classnames';
-import { useDashboardLayoutStore } from 'src/dashboard/stores';
+import { useUndoLength, useRedoLength } from 'src/dashboard/stores';
 import type { JsonObject } from '@superset-ui/core';
 import type { ResizeStartCallback, ResizeCallback } from 're-resizable';
 import { ErrorBoundary } from 'src/components';
@@ -476,14 +475,8 @@ type MarkdownWithHistoryProps = Omit<
 >;
 
 const MarkdownWithHistory = (props: MarkdownWithHistoryProps) => {
-  const undoLength = useStore(
-    useDashboardLayoutStore.temporal,
-    s => s.pastStates.length,
-  );
-  const redoLength = useStore(
-    useDashboardLayoutStore.temporal,
-    s => s.futureStates.length,
-  );
+  const undoLength = useUndoLength();
+  const redoLength = useRedoLength();
   return (
     <ConnectedMarkdown
       {...props}

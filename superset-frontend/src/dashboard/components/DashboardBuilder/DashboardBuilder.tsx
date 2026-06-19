@@ -51,7 +51,9 @@ import {
 } from 'src/dashboard/util/constants';
 import FilterBar from 'src/dashboard/components/nativeFilters/FilterBar';
 import {
-  useDashboardLayoutStore,
+  useDashboardLayout,
+  deleteTopLevelTabs,
+  clearLayoutHistory,
   useFilterBarOrientation,
   useCanEditDashboard,
   useDashboardId,
@@ -371,7 +373,7 @@ const DashboardBuilder = () => {
   const theme = useTheme();
 
   const dashboardId = `${useDashboardId()}`;
-  const dashboardLayout = useDashboardLayoutStore(s => s.layout);
+  const dashboardLayout = useDashboardLayout();
   const editMode = useEditMode();
   const fullSizeChartId = useFullSizeChartId();
   const canEdit = useCanEditDashboard();
@@ -387,7 +389,7 @@ const DashboardBuilder = () => {
   );
 
   const handleDeleteTopLevelTabs = useCallback(() => {
-    useDashboardLayoutStore.getState().deleteTopLevelTabs();
+    deleteTopLevelTabs();
 
     const firstTab = getDirectPathToTabIndex(
       getRootLevelTabsComponent(dashboardLayout),
@@ -664,7 +666,7 @@ const DashboardBuilder = () => {
               buttonText={canEdit && t('Edit the dashboard')}
               buttonAction={() => {
                 setEditMode(true);
-                useDashboardLayoutStore.temporal.getState().clear();
+                clearLayoutHistory();
               }}
               image="dashboard.svg"
             />

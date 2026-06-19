@@ -37,7 +37,7 @@ import {
 } from 'src/dashboard/util/flagTitleUnsavedChanges';
 import { onRefresh } from 'src/dashboard/actions/dashboardState';
 import {
-  useDashboardLayoutStore,
+  useDashboardLayout,
   useLastRefreshTime,
   useTabActivationTime,
   setEditMode,
@@ -164,7 +164,7 @@ interface DragDropChildProps {
 const Tab = (props: TabProps): ReactElement => {
   const dispatch = useDispatch();
   const canEdit = useCanEditDashboard();
-  const dashboardLayout = useDashboardLayoutStore(s => s.layout);
+  const dashboardLayout = useDashboardLayout();
   const lastRefreshTime = useLastRefreshTime();
   const tabActivationTime = useTabActivationTime(props.id);
   const dashboardInfo = useDashboardInfo();

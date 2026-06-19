@@ -18,7 +18,7 @@
  */
 import { useCallback, useMemo } from 'react';
 import {
-  useDashboardLayoutStore,
+  useDashboardLayout,
   useNativeFiltersStore,
   useActiveTabs,
   useNativeFilterConfiguration,
@@ -119,7 +119,7 @@ function filterCustomizationsForDashboard(
 
 export function useChartCustomizationConfiguration() {
   const allCustomizations = useChartCustomizationConfig() || EMPTY_ARRAY;
-  const dashboardLayout = useDashboardLayoutStore(s => s.layout);
+  const dashboardLayout = useDashboardLayout();
   return useMemo(() => {
     const dashboardChartIds = new Set(
       Object.values(dashboardLayout)
@@ -166,10 +166,6 @@ export function useChartCustomizationConfigMap() {
       ),
     [filterConfig],
   );
-}
-
-export function useDashboardLayout() {
-  return useDashboardLayoutStore(s => s.layout);
 }
 
 export function useDashboardHasTabs() {

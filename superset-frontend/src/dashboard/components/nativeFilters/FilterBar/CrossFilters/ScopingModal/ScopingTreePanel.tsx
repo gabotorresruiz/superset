@@ -29,7 +29,7 @@ import {
   isCrossFilterScopeGlobal,
 } from 'src/dashboard/types';
 import {
-  useDashboardLayoutStore,
+  useDashboardLayout,
   useCrossFiltersEnabled,
 } from 'src/dashboard/stores';
 import { CHART_TYPE } from 'src/dashboard/util/componentTypes';
@@ -63,7 +63,7 @@ const ChartSelect = ({
   chartConfigs: ChartConfiguration;
 }) => {
   const theme = useTheme();
-  const layout = useDashboardLayoutStore(s => s.layout);
+  const layout = useDashboardLayout();
   const options: SelectOptionsType = useMemo(() => {
     const chartLayoutItems = Object.values(layout).filter(
       item => item.type === CHART_TYPE,

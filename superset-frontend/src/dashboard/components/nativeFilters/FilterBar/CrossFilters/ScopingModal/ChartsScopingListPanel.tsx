@@ -24,7 +24,7 @@ import {
   ChartConfiguration,
   isCrossFilterScopeGlobal,
 } from 'src/dashboard/types';
-import { useDashboardLayoutStore } from 'src/dashboard/stores';
+import { useDashboardLayout } from 'src/dashboard/stores';
 import { CHART_TYPE } from 'src/dashboard/util/componentTypes';
 import { Icons } from '@superset-ui/core/components/Icons';
 import { Button } from '@superset-ui/core/components';
@@ -99,7 +99,7 @@ export const ChartsScopingListPanel = ({
   addNewCustomScope,
 }: ChartsScopingListPanelProps) => {
   const theme = useTheme();
-  const layout = useDashboardLayoutStore(s => s.layout);
+  const layout = useDashboardLayout();
   const customScopedCharts = useMemo(() => {
     const chartLayoutItems = Object.values(layout).filter(
       item => item.type === CHART_TYPE,
