@@ -84,23 +84,3 @@ export const unsetFocusedFilterField = (
   column: string,
 ): void =>
   useDashboardStateStore.getState().unsetFocusedFilterField(chartId, column);
-
-// --- Imperative reads (read the current value without subscribing) ---
-
-export const getEditMode = (): boolean =>
-  useDashboardStateStore.getState().editMode;
-
-export const getHasUnsavedChanges = (): boolean =>
-  useDashboardStateStore.getState().hasUnsavedChanges;
-
-export const getDirectPathToChild = (): string[] =>
-  useDashboardStateStore.getState().directPathToChild;
-
-export const getColorScheme = (): string | undefined =>
-  useDashboardStateStore.getState().colorScheme;
-
-export const getSliceIds = (): number[] =>
-  useDashboardStateStore.getState().sliceIds;
-
-export const getOverwriteConfirmMetadata = (): JsonObject | undefined =>
-  useDashboardStateStore.getState().overwriteConfirmMetadata;

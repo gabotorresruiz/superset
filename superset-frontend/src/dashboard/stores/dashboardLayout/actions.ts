@@ -38,11 +38,6 @@ export const updateDashboardTitle = (text: string): void =>
 export const deleteTopLevelTabs = (): void =>
   useDashboardLayoutStore.getState().deleteTopLevelTabs();
 
-// --- Imperative reads ---
-
-export const getLayout = (): DashboardLayout =>
-  useDashboardLayoutStore.getState().layout;
-
 // --- Undo / redo (zundo temporal store) ---
 
 export const undoLayout = (): void =>

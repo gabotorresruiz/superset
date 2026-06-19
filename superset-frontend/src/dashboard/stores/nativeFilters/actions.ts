@@ -24,7 +24,6 @@
  * directly. Calls delegate to the store's own actions so middleware stays
  * applied. For reactive reads in render, use the hooks in `./hooks`.
  */
-import type { FilterEntry } from './useNativeFiltersStore';
 import { useNativeFiltersStore } from './useNativeFiltersStore';
 
 // --- Focus / hover ---
@@ -49,13 +48,5 @@ export const unsetHoveredChartCustomization = (): void =>
 
 // --- Cascade ---
 
-export const updateCascadeParentIds = (
-  id: string,
-  parentIds: string[],
-): void =>
+export const updateCascadeParentIds = (id: string, parentIds: string[]): void =>
   useNativeFiltersStore.getState().updateCascadeParentIds(id, parentIds);
-
-// --- Imperative reads ---
-
-export const getFilterEntries = (): Record<string, FilterEntry> =>
-  useNativeFiltersStore.getState().filters;
