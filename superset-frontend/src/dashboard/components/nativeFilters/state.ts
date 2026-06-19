@@ -19,10 +19,10 @@
 import { useCallback, useMemo } from 'react';
 import {
   useDashboardLayout,
-  useNativeFiltersStore,
   useActiveTabs,
   useNativeFilterConfiguration,
   useChartCustomizationConfig,
+  useFilterEntries,
 } from 'src/dashboard/stores';
 import {
   Filter,
@@ -72,7 +72,7 @@ export function useFilterConfiguration() {
 }
 
 export function useChartCustomizations() {
-  const filtersMap = useNativeFiltersStore(s => s.filters);
+  const filtersMap = useFilterEntries();
   return useMemo(
     (): (ChartCustomization | ChartCustomizationDivider)[] =>
       Object.values(filtersMap).filter(

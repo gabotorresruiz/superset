@@ -18,7 +18,7 @@
  */
 import { useMemo } from 'react';
 import { DataMaskStateWithId, ExtraFormData } from '@superset-ui/core';
-import { useNativeFiltersStore } from 'src/dashboard/stores';
+import { useFilterEntries } from 'src/dashboard/stores';
 import { mergeExtraFormData } from '../../utils';
 import {
   FilterConfigMap,
@@ -32,7 +32,7 @@ import {
  * always agree on which parents count.
  */
 export function useTransitiveParentIds(id: string): string[] {
-  const filterConfig: FilterConfigMap = useNativeFiltersStore(s => s.filters);
+  const filterConfig: FilterConfigMap = useFilterEntries();
 
   return useMemo(
     () => resolveTransitiveParentIds(id, filterConfig),

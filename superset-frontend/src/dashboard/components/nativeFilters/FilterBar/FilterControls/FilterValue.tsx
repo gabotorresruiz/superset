@@ -44,12 +44,13 @@ import {
 import { styled, SupersetTheme } from '@apache-superset/core/theme';
 import { useTheme } from '@emotion/react';
 import {
-  useNativeFiltersStore,
   useIsRefreshing,
   useIsFiltersRefreshing,
   setIsFiltersRefreshing,
   setDirectPathToChild,
   useDashboardId,
+  setHoveredChartCustomization,
+  unsetHoveredChartCustomization,
 } from 'src/dashboard/stores';
 import { isEqual, isEqualWith } from 'lodash';
 import { getChartDataRequest } from 'src/components/Chart/chartAction';
@@ -380,7 +381,7 @@ const FilterValue: FC<FilterValueProps> = ({
 
   const setHoveredFilter = useCallback(() => {
     if (isCustomization) {
-      useNativeFiltersStore.getState().setHoveredChartCustomization(id);
+      setHoveredChartCustomization(id);
     } else {
       dispatchHoverAction(id);
     }
@@ -388,7 +389,7 @@ const FilterValue: FC<FilterValueProps> = ({
 
   const unsetHoveredFilter = useCallback(() => {
     if (isCustomization) {
-      useNativeFiltersStore.getState().unsetHoveredChartCustomization();
+      unsetHoveredChartCustomization();
     } else {
       dispatchHoverAction();
     }

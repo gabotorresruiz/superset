@@ -18,7 +18,7 @@
  */
 import { ensureIsArray, Filter } from '@superset-ui/core';
 import { useMemo } from 'react';
-import { useNativeFiltersStore } from 'src/dashboard/stores';
+import { useFilterEntries } from 'src/dashboard/stores';
 import { FilterElement } from '../FilterBar/FilterControls/types';
 
 const EMPTY_ARRAY: Filter[] = [];
@@ -27,7 +27,7 @@ export const useFilterDependencies = (filter: FilterElement) => {
   const filterDependencyIdsKey = ensureIsArray(
     filter.cascadeParentIds ?? [],
   ).join(',');
-  const filters = useNativeFiltersStore(s => s.filters);
+  const filters = useFilterEntries();
 
   return useMemo(() => {
     const filterDependencyIds = filterDependencyIdsKey

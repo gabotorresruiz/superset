@@ -21,7 +21,11 @@ import { t } from '@apache-superset/core/translation';
 import { DashboardComponentMetadata, JsonObject } from '@superset-ui/core';
 import backgroundStyleOptions from 'src/dashboard/util/backgroundStyleOptions';
 import cx from 'classnames';
-import { useNativeFiltersStore } from 'src/dashboard/stores';
+import {
+  useFilterEntries,
+  useFocusedFilterId,
+  useHoveredFilterId,
+} from 'src/dashboard/stores';
 import { useDataMaskStore } from 'src/dataMask/useDataMaskStore';
 import { ResizeCallback, ResizeStartCallback } from 're-resizable';
 import type { ConnectDragSource } from 'react-dnd';
@@ -101,9 +105,9 @@ const DynamicComponent: FC<DynamicComponentProps> = ({
   };
 
   const { Component } = dashboardComponents.get(component.meta.componentKey);
-  const filters = useNativeFiltersStore(s => s.filters);
-  const focusedFilterId = useNativeFiltersStore(s => s.focusedFilterId);
-  const hoveredFilterId = useNativeFiltersStore(s => s.hoveredFilterId);
+  const filters = useFilterEntries();
+  const focusedFilterId = useFocusedFilterId();
+  const hoveredFilterId = useHoveredFilterId();
   const dataMask = useDataMaskStore(s => s.dataMask);
   const dashboardData = useMemo<DashboardComponentMetadata>(
     () => ({

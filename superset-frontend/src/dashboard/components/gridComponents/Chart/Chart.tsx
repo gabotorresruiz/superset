@@ -59,9 +59,9 @@ import {
 } from '../../../util/chartStateConverter';
 import { useIsAutoRefreshing } from 'src/dashboard/contexts/AutoRefreshContext';
 import {
-  useNativeFiltersStore,
   useCrossFiltersEnabled,
   useSlice,
+  useFilterEntries,
   useDashboardInfo,
   useDashboardConf,
   useCanExplore,
@@ -391,7 +391,7 @@ const Chart = (props: ChartProps) => {
   const colorNamespace = useColorNamespace();
   const datasetsStatus = useDatasetsStatus();
   const allSliceIds = useSliceIds();
-  const nativeFilters = useNativeFiltersStore(s => s.filters);
+  const nativeFilters = useFilterEntries();
   const dataMask = useDataMaskStore(s => s.dataMask);
   const dataMaskOwnState = dataMask[props.id]?.ownState;
   const chartState = useChartState(props.id);

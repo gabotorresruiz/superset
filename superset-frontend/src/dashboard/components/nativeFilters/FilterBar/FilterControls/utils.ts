@@ -17,29 +17,36 @@
  * under the License.
  */
 import { debounce } from 'lodash';
-import { useNativeFiltersStore } from 'src/dashboard/stores';
+import {
+  setHoveredFilter,
+  unsetHoveredFilter,
+  setFocusedFilter,
+  unsetFocusedFilter,
+  setHoveredChartCustomization,
+  unsetHoveredChartCustomization,
+} from 'src/dashboard/stores';
 import { Constants } from '@superset-ui/core/components';
 
 export const dispatchHoverAction = debounce((id?: string) => {
   if (id) {
-    useNativeFiltersStore.getState().setHoveredFilter(id);
+    setHoveredFilter(id);
   } else {
-    useNativeFiltersStore.getState().unsetHoveredFilter();
+    unsetHoveredFilter();
   }
 }, Constants.FAST_DEBOUNCE);
 
 export const dispatchFocusAction = debounce((id?: string) => {
   if (id) {
-    useNativeFiltersStore.getState().setFocusedFilter(id);
+    setFocusedFilter(id);
   } else {
-    useNativeFiltersStore.getState().unsetFocusedFilter();
+    unsetFocusedFilter();
   }
 }, Constants.FAST_DEBOUNCE);
 
 export const dispatchChartCustomizationHoverAction = debounce((id?: string) => {
   if (id) {
-    useNativeFiltersStore.getState().setHoveredChartCustomization(id);
+    setHoveredChartCustomization(id);
   } else {
-    useNativeFiltersStore.getState().unsetHoveredChartCustomization();
+    unsetHoveredChartCustomization();
   }
 }, Constants.FAST_DEBOUNCE);

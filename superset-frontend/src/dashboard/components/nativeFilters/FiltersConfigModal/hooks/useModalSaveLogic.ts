@@ -26,7 +26,7 @@ import {
   ChartCustomizationDivider,
 } from '@superset-ui/core';
 import type { FormInstance } from '@superset-ui/core/components';
-import { useNativeFiltersStore } from 'src/dashboard/stores';
+import { updateCascadeParentIds } from 'src/dashboard/stores';
 import type { FiltersConfigFormHandle } from '../FiltersConfigForm/FiltersConfigForm';
 import {
   NativeFiltersForm,
@@ -117,9 +117,7 @@ export function useModalSaveLogic({
             cascadeParentIds &&
             !isEqual(cascadeParentIds, filter.cascadeParentIds)
           ) {
-            useNativeFiltersStore
-              .getState()
-              .updateCascadeParentIds(key, cascadeParentIds);
+            updateCascadeParentIds(key, cascadeParentIds);
             modifiedParentFilters.add(key);
           }
 

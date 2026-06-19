@@ -28,10 +28,12 @@ import { usePrevious } from '@superset-ui/core';
 import { useTheme, styled } from '@apache-superset/core/theme';
 import { t } from '@apache-superset/core/translation';
 import {
-  useNativeFiltersStore,
   useActiveTabs,
   useDirectPathToChild,
   useNativeFiltersBarOpen,
+  useFilterEntries,
+  useFocusedFilterId,
+  useHoveredFilterId,
 } from 'src/dashboard/stores';
 import { Icons } from '@superset-ui/core/components/Icons';
 import { LOG_ACTIONS_SELECT_DASHBOARD_TAB } from 'src/logger/LogUtils';
@@ -125,9 +127,9 @@ interface DraggableChildProps {
 const Tabs = (props: TabsProps): ReactElement => {
   const theme = useTheme();
 
-  const filters = useNativeFiltersStore(s => s.filters);
-  const focusedFilterId = useNativeFiltersStore(s => s.focusedFilterId);
-  const hoveredFilterId = useNativeFiltersStore(s => s.hoveredFilterId);
+  const filters = useFilterEntries();
+  const focusedFilterId = useFocusedFilterId();
+  const hoveredFilterId = useHoveredFilterId();
   const activeTabs = useActiveTabs();
   const directPathToChild = useDirectPathToChild();
   const nativeFiltersBarOpen = useNativeFiltersBarOpen() ?? false;
