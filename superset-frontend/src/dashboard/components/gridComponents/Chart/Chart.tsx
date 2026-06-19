@@ -59,7 +59,6 @@ import {
 } from '../../../util/chartStateConverter';
 import { useIsAutoRefreshing } from 'src/dashboard/contexts/AutoRefreshContext';
 import {
-  useDashboardStateStore,
   useDashboardSlicesStore,
   useNativeFiltersStore,
   useCrossFiltersEnabled,
@@ -73,6 +72,17 @@ import {
   useLabelsColor,
   useLabelsColorMap,
   useSharedLabelsColors,
+  useEditMode,
+  useIsSliceExpanded,
+  useColorScheme,
+  useColorNamespace,
+  useDatasetsStatus,
+  useSliceIds,
+  useChartState,
+  setFocusedFilterField,
+  unsetFocusedFilterField,
+  updateChartState,
+  toggleExpandSlice,
 } from 'src/dashboard/stores';
 import { useDataMaskStore } from 'src/dataMask/useDataMaskStore';
 
@@ -210,10 +220,8 @@ const Chart = (props: ChartProps) => {
   const sliceVizType = slice.viz_type;
   const sliceSliceId = slice.slice_id;
   const sliceSliceName = slice.slice_name;
-  const editMode = useDashboardStateStore(s => s.editMode);
-  const isExpanded = useDashboardStateStore(
-    s => !!s.expandedSlices?.[props.id],
-  );
+  const editMode = useEditMode();
+  const isExpanded = useIsSliceExpanded(props.id);
   const supersetCanExplore = useCanExplore();
   const supersetCanShare = useCanShare();
   const supersetCanCSV = useCanCsv();
@@ -290,13 +298,11 @@ const Chart = (props: ChartProps) => {
   const handleChartStateChange = useCallback(
     (chartStateArg: JsonObject) => {
       if (hasChartStateConverter(sliceVizType)) {
-        useDashboardStateStore
-          .getState()
-          .updateChartState(
-            props.id,
-            sliceVizType,
-            chartStateArg as unknown as import('@superset-ui/core').AgGridChartState,
-          );
+        updateChartState(
+          props.id,
+          sliceVizType,
+          chartStateArg as unknown as import('@superset-ui/core').AgGridChartState,
+        );
       }
     },
     [props.id, sliceVizType],
@@ -360,16 +366,14 @@ const Chart = (props: ChartProps) => {
 
   const handleFilterMenuOpen = useCallback(
     (chartId: number, column: string) => {
-      useDashboardStateStore.getState().setFocusedFilterField(chartId, column);
+      setFocusedFilterField(chartId, column);
     },
     [],
   );
 
   const handleFilterMenuClose = useCallback(
     (chartId: number, column: string) => {
-      useDashboardStateStore
-        .getState()
-        .unsetFocusedFilterField(chartId, column);
+      unsetFocusedFilterField(chartId, column);
     },
     [],
   );
@@ -383,14 +387,14 @@ const Chart = (props: ChartProps) => {
 
   const chartConfiguration = useChartConfiguration();
   const chartCustomizationItems = useChartCustomizations();
-  const colorScheme = useDashboardStateStore(s => s.colorScheme);
-  const colorNamespace = useDashboardStateStore(s => s.colorNamespace);
-  const datasetsStatus = useDashboardStateStore(s => s.datasetsStatus);
-  const allSliceIds = useDashboardStateStore(s => s.sliceIds);
+  const colorScheme = useColorScheme();
+  const colorNamespace = useColorNamespace();
+  const datasetsStatus = useDatasetsStatus();
+  const allSliceIds = useSliceIds();
   const nativeFilters = useNativeFiltersStore(s => s.filters);
   const dataMask = useDataMaskStore(s => s.dataMask);
   const dataMaskOwnState = dataMask[props.id]?.ownState;
-  const chartState = useDashboardStateStore(s => s.chartStates[props.id]);
+  const chartState = useChartState(props.id);
   const labelsColor: JsonObject = useLabelsColor();
   const labelsColorMap: JsonObject = useLabelsColorMap();
   const rawSharedLabelsColors = useSharedLabelsColors();
@@ -656,7 +660,7 @@ const Chart = (props: ChartProps) => {
         cachedDttm={cachedDttm as string[]}
         queriedDttm={queriedDttm as string | null | undefined}
         updatedDttm={chartUpdateEndTime ?? null}
-        toggleExpandSlice={useDashboardStateStore.getState().toggleExpandSlice}
+        toggleExpandSlice={toggleExpandSlice}
         forceRefresh={forceRefresh}
         editMode={editMode}
         annotationQuery={annotationQuery}

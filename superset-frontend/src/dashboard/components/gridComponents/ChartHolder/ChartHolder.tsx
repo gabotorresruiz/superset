@@ -22,7 +22,10 @@ import { ResizeCallback, ResizeStartCallback } from 're-resizable';
 import cx from 'classnames';
 import { css, useTheme } from '@apache-superset/core/theme';
 import { LayoutItem } from 'src/dashboard/types';
-import { useDashboardStateStore } from 'src/dashboard/stores';
+import {
+  useDirectPathToChild,
+  useDirectPathLastUpdated,
+} from 'src/dashboard/stores';
 import AnchorLink from 'src/dashboard/components/AnchorLink';
 import Chart from 'src/dashboard/components/gridComponents/Chart';
 import DeleteComponentButton from 'src/dashboard/components/DeleteComponentButton';
@@ -110,9 +113,8 @@ const ChartHolder = ({
   const chartHolderRef = useRef<HTMLDivElement | null>(null);
 
   const focusHighlightStyles = useFilterFocusHighlightStyles(chartId ?? 0);
-  const directPathToChild = useDashboardStateStore(s => s.directPathToChild);
-  const directPathLastUpdated =
-    useDashboardStateStore(s => s.directPathLastUpdated) ?? 0;
+  const directPathToChild = useDirectPathToChild();
+  const directPathLastUpdated = useDirectPathLastUpdated() ?? 0;
 
   const [extraControls, setExtraControls] = useState<Record<string, unknown>>(
     {},

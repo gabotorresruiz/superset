@@ -24,7 +24,7 @@
  * directly, keeping the state library an implementation detail. For reactive
  * reads in render, use the hooks in `./hooks` instead.
  */
-import type { JsonObject } from '@superset-ui/core';
+import type { AgGridChartState, JsonObject } from '@superset-ui/core';
 import { useDashboardStateStore } from './useDashboardStateStore';
 
 // --- Imperative writes (dispatch a state change from a callback/effect) ---
@@ -71,6 +71,19 @@ export const setFocusedFilterField = (chartId: number, column: string): void =>
 
 export const clearAllChartStates = (): void =>
   useDashboardStateStore.getState().clearAllChartStates();
+
+export const updateChartState = (
+  chartId: number,
+  vizType: string,
+  state: AgGridChartState,
+): void =>
+  useDashboardStateStore.getState().updateChartState(chartId, vizType, state);
+
+export const unsetFocusedFilterField = (
+  chartId: number,
+  column: string,
+): void =>
+  useDashboardStateStore.getState().unsetFocusedFilterField(chartId, column);
 
 // --- Imperative reads (read the current value without subscribing) ---
 

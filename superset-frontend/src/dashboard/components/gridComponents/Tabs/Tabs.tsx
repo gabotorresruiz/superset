@@ -28,8 +28,10 @@ import { usePrevious } from '@superset-ui/core';
 import { useTheme, styled } from '@apache-superset/core/theme';
 import { t } from '@apache-superset/core/translation';
 import {
-  useDashboardStateStore,
   useNativeFiltersStore,
+  useActiveTabs,
+  useDirectPathToChild,
+  useNativeFiltersBarOpen,
 } from 'src/dashboard/stores';
 import { Icons } from '@superset-ui/core/components/Icons';
 import { LOG_ACTIONS_SELECT_DASHBOARD_TAB } from 'src/logger/LogUtils';
@@ -126,10 +128,9 @@ const Tabs = (props: TabsProps): ReactElement => {
   const filters = useNativeFiltersStore(s => s.filters);
   const focusedFilterId = useNativeFiltersStore(s => s.focusedFilterId);
   const hoveredFilterId = useNativeFiltersStore(s => s.hoveredFilterId);
-  const activeTabs = useDashboardStateStore(s => s.activeTabs);
-  const directPathToChild = useDashboardStateStore(s => s.directPathToChild);
-  const nativeFiltersBarOpen =
-    useDashboardStateStore(s => s.nativeFiltersBarOpen) ?? false;
+  const activeTabs = useActiveTabs();
+  const directPathToChild = useDirectPathToChild();
+  const nativeFiltersBarOpen = useNativeFiltersBarOpen() ?? false;
 
   const { tabIndex: initTabIndex, activeKey: initActiveKey } = useMemo(() => {
     let tabIndex = Math.max(

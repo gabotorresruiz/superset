@@ -25,7 +25,10 @@
  * effects, use the plain functions in `./actions` instead.
  */
 import type { JsonObject } from '@superset-ui/core';
-import type { DashboardChartStates } from 'src/dashboard/types/chartState';
+import type {
+  ChartState,
+  DashboardChartStates,
+} from 'src/dashboard/types/chartState';
 import { useDashboardStateStore } from './useDashboardStateStore';
 
 /** Whether the dashboard is in edit mode. */
@@ -115,3 +118,17 @@ export const useDatasetsStatus = (): string | undefined =>
 /** Metadata for the overwrite-confirm flow, if a conflict is pending. */
 export const useOverwriteConfirmMetadata = (): JsonObject | undefined =>
   useDashboardStateStore(s => s.overwriteConfirmMetadata);
+
+// --- Parameterized selectors (subscribe to a single entry) ---
+
+/** Whether a specific slice is expanded. */
+export const useIsSliceExpanded = (sliceId: number): boolean =>
+  useDashboardStateStore(s => !!s.expandedSlices?.[sliceId]);
+
+/** The stored UI state for a specific chart. */
+export const useChartState = (chartId: number): ChartState =>
+  useDashboardStateStore(s => s.chartStates[chartId]);
+
+/** The last activation timestamp for a specific tab. */
+export const useTabActivationTime = (tabId: string): number =>
+  useDashboardStateStore(s => s.tabActivationTimes[tabId]);

@@ -37,9 +37,11 @@ import {
 } from 'src/dashboard/util/flagTitleUnsavedChanges';
 import { onRefresh } from 'src/dashboard/actions/dashboardState';
 import {
-  useDashboardStateStore,
   useDashboardLayoutStore,
   useDashboardInfoStore,
+  useLastRefreshTime,
+  useTabActivationTime,
+  setEditMode,
 } from 'src/dashboard/stores';
 import getChartIdsFromComponent from 'src/dashboard/util/getChartIdsFromComponent';
 import DashboardComponent from 'src/dashboard/containers/DashboardComponent';
@@ -162,10 +164,8 @@ const Tab = (props: TabProps): ReactElement => {
   const dispatch = useDispatch();
   const canEdit = useDashboardInfoStore(s => s.dashboardInfo.dash_edit_perm);
   const dashboardLayout = useDashboardLayoutStore(s => s.layout);
-  const lastRefreshTime = useDashboardStateStore(s => s.lastRefreshTime);
-  const tabActivationTime = useDashboardStateStore(
-    s => s.tabActivationTimes[props.id],
-  );
+  const lastRefreshTime = useLastRefreshTime();
+  const tabActivationTime = useTabActivationTime(props.id);
   const dashboardInfo = useDashboardInfoStore(s => s.dashboardInfo);
   const isAutoRefreshing = useIsAutoRefreshing();
   const isRefreshInFlight = useIsRefreshInFlight();
@@ -370,9 +370,7 @@ const Tab = (props: TabProps): ReactElement => {
                         <span
                           role="button"
                           tabIndex={0}
-                          onClick={() =>
-                            useDashboardStateStore.getState().setEditMode(true)
-                          }
+                          onClick={() => setEditMode(true)}
                         >
                           {t('edit mode')}
                         </span>
