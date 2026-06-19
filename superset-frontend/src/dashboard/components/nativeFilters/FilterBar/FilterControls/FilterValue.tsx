@@ -44,9 +44,12 @@ import {
 import { styled, SupersetTheme } from '@apache-superset/core/theme';
 import { useTheme } from '@emotion/react';
 import {
-  useDashboardStateStore,
   useDashboardInfoStore,
   useNativeFiltersStore,
+  useIsRefreshing,
+  useIsFiltersRefreshing,
+  setIsFiltersRefreshing,
+  setDirectPathToChild,
 } from 'src/dashboard/stores';
 import { isEqual, isEqualWith } from 'lodash';
 import { getChartDataRequest } from 'src/components/Chart/chartAction';
@@ -111,8 +114,8 @@ export const applyTimeGrainAllowlist = (
 };
 
 const useShouldFilterRefresh = () => {
-  const isDashboardRefreshing = useDashboardStateStore(s => s.isRefreshing);
-  const isFilterRefreshing = useDashboardStateStore(s => s.isFiltersRefreshing);
+  const isDashboardRefreshing = useIsRefreshing();
+  const isFilterRefreshing = useIsFiltersRefreshing();
 
   // trigger filter requests only after charts requests were triggered
   return !isDashboardRefreshing && isFilterRefreshing;
@@ -182,7 +185,7 @@ const FilterValue: FC<FilterValueProps> = ({
     setIsRefreshing(false);
     setIsLoading(false);
     if (shouldRefresh) {
-      useDashboardStateStore.getState().setIsFiltersRefreshing(false);
+      setIsFiltersRefreshing(false);
     }
   }, [shouldRefresh]);
 
@@ -371,7 +374,7 @@ const FilterValue: FC<FilterValueProps> = ({
     }
     dispatchFocusAction();
     if (outlinedFilterId === id) {
-      useDashboardStateStore.getState().setDirectPathToChild([]);
+      setDirectPathToChild([]);
     }
   }, [id, outlinedFilterId, isCustomization]);
 

@@ -18,14 +18,15 @@
  */
 
 import { useMemo } from 'react';
-import { useDashboardStateStore } from 'src/dashboard/stores';
+import {
+  useDirectPathToChild,
+  useDirectPathLastUpdated,
+} from 'src/dashboard/stores';
 import getChartAndLabelComponentIdFromPath from 'src/dashboard/util/getChartAndLabelComponentIdFromPath';
 
 export const useFilterOutlined = () => {
-  const directPathToChild = useDashboardStateStore(s => s.directPathToChild);
-  const directPathLastUpdated = useDashboardStateStore(
-    s => s.directPathLastUpdated,
-  );
+  const directPathToChild = useDirectPathToChild();
+  const directPathLastUpdated = useDirectPathLastUpdated();
 
   return useMemo(
     () => ({

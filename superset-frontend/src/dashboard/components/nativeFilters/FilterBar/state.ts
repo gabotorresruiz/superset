@@ -33,14 +33,14 @@ import {
   LEGACY_GROUPBY_PREFIX,
   isNativeFilter,
 } from '../FiltersConfigModal/utils';
-import { useDashboardStateStore } from 'src/dashboard/stores';
+import { usePreselectNativeFilters } from 'src/dashboard/stores';
 import { useDataMaskStore } from 'src/dataMask/useDataMaskStore';
 import { useFilterConfiguration } from '../state';
 
 export const useFilters = () => {
-  const preselectedNativeFilters = useDashboardStateStore(
-    s => s.preselectNativeFilters,
-  ) as Filters | undefined;
+  const preselectedNativeFilters = usePreselectNativeFilters() as
+    | Filters
+    | undefined;
   const filterConfiguration = useFilterConfiguration();
 
   return useMemo(

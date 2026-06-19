@@ -21,7 +21,7 @@ import { useCallback } from 'react';
 import { css, useTheme } from '@apache-superset/core/theme';
 import { CrossFilterIndicator } from 'src/dashboard/components/nativeFilters/selectors';
 import { useDispatch } from 'react-redux';
-import { useDashboardStateStore } from 'src/dashboard/stores';
+import { setDirectPathToChild } from 'src/dashboard/stores';
 import { FilterBarOrientation } from 'src/dashboard/types';
 import { updateDataMask } from 'src/dataMask/actions';
 import CrossFilterTag from './CrossFilterTag';
@@ -38,7 +38,7 @@ const CrossFilter = (props: {
 
   const handleHighlightFilterSource = useCallback((path?: string[]) => {
     if (path) {
-      useDashboardStateStore.getState().setDirectPathToChild(path);
+      setDirectPathToChild(path);
     }
   }, []);
 

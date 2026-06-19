@@ -21,7 +21,7 @@ import { t } from '@apache-superset/core/translation';
 import { useTruncation } from '@superset-ui/core';
 import { css, useTheme } from '@apache-superset/core/theme';
 import { Icons } from '@superset-ui/core/components/Icons';
-import { useDashboardStateStore } from 'src/dashboard/stores';
+import { setDirectPathToChild } from 'src/dashboard/stores';
 import { List } from '@superset-ui/core/components/List';
 import {
   DependencyItem,
@@ -39,7 +39,7 @@ const DependencyValue = ({
   hasSeparator,
 }: DependencyValueProps) => {
   const handleClick = useCallback(() => {
-    useDashboardStateStore.getState().setDirectPathToChild([dependency.id]);
+    setDirectPathToChild([dependency.id]);
   }, [dependency.id]);
   return (
     <span>

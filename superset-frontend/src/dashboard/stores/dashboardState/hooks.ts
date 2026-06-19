@@ -131,6 +131,10 @@ export const useDatasetsStatus = (): string | undefined =>
 export const useOverwriteConfirmMetadata = (): JsonObject | undefined =>
   useDashboardStateStore(s => s.overwriteConfirmMetadata);
 
+/** Preselected native-filter values carried from the dashboard payload. */
+export const usePreselectNativeFilters = (): JsonObject | undefined =>
+  useDashboardStateStore(s => s.preselectNativeFilters);
+
 // --- Parameterized selectors (subscribe to a single entry) ---
 
 /** Whether a specific slice is expanded. */

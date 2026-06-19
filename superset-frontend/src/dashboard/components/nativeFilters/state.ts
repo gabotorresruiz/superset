@@ -18,10 +18,10 @@
  */
 import { useCallback, useMemo } from 'react';
 import {
-  useDashboardStateStore,
   useDashboardLayoutStore,
   useNativeFiltersStore,
   useDashboardInfoStore,
+  useActiveTabs,
 } from 'src/dashboard/stores';
 import {
   Filter,
@@ -189,7 +189,7 @@ export function useDashboardHasTabs() {
 }
 
 function useActiveDashboardTabs(): ActiveTabs {
-  const storeTabs = useDashboardStateStore(s => s.activeTabs);
+  const storeTabs = useActiveTabs();
   const dashboardLayout = useDashboardLayout();
 
   return useMemo(() => {
