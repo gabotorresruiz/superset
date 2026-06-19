@@ -129,7 +129,7 @@ jest.mock('src/utils/urlUtils', () => ({
 
 const mockGetUrlParam = getUrlParam as jest.Mock;
 
-jest.mock('src/dashboard/components/nativeFilters/FilterBar/keyValue', () => ({
+jest.mock('src/dashboard/queries/filterStateApi', () => ({
   getFilterValue: jest.fn(),
   getPermalinkValue: jest.fn(),
 }));
