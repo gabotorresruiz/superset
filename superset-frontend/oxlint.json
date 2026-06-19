@@ -322,10 +322,7 @@
             ],
             "patterns": [
               {
-                "group": [
-                  "**/dashboard/stores/*",
-                  "**/dashboard/stores/*/**"
-                ],
+                "group": ["**/dashboard/stores/*", "**/dashboard/stores/*/**"],
                 "message": "Dashboard components must import client-state hooks/actions from the 'src/dashboard/stores' barrel only — not its submodules, per-store barrels, or the raw Zustand store files."
               }
             ]

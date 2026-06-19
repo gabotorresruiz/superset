@@ -781,7 +781,7 @@ const FiltersConfigForm = (
     if (datasetError) {
       addDangerToast((datasetError as SupersetApiError).message);
     }
-  }, [datasetError, addDangerToast]);
+  }, [datasetError]);
 
   useImperativeHandle(ref, () => ({
     changeTab(tab: 'configuration' | 'scoping') {
