@@ -25,10 +25,7 @@ export type { DashboardStateStore } from './dashboardState';
 export * from './dashboardState/hooks';
 export * from './dashboardState/actions';
 
-export {
-  useDashboardLayoutStore,
-  useHandleComponentDrop,
-} from './dashboardLayout';
+export { useDashboardLayoutStore } from './dashboardLayout';
 export * from './dashboardLayout/hooks';
 export * from './dashboardLayout/actions';
 

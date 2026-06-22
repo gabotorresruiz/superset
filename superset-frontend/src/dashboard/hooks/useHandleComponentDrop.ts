@@ -30,7 +30,7 @@ import findParentId from 'src/dashboard/util/findParentId';
 import isInDifferentFilterScopes from 'src/dashboard/util/isInDifferentFilterScopes';
 import type { DropResult } from 'src/dashboard/components/dnd/dragDroppableConfig';
 import type { LayoutItem, RootState } from 'src/dashboard/types';
-import { useDashboardLayoutStore } from './useDashboardLayoutStore';
+import { useDashboardLayoutStore } from 'src/dashboard/stores';
 
 // Routes a drag-drop to the right layout-store mutation and emits warnings.
 // Replaces the Redux handleComponentDrop thunk.

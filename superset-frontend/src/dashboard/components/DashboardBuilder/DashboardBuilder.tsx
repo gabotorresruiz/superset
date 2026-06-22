@@ -57,13 +57,13 @@ import {
   useFilterBarOrientation,
   useCanEditDashboard,
   useDashboardId,
-  useHandleComponentDrop,
   useEditMode,
   useFullSizeChartId,
   useDashboardIsSaving,
   setDirectPathToChild,
   setEditMode,
 } from 'src/dashboard/stores';
+import { useHandleComponentDrop } from 'src/dashboard/hooks/useHandleComponentDrop';
 import { useUiConfig } from 'src/components/UiConfigContext';
 import ResizableSidebar from 'src/components/ResizableSidebar';
 import {

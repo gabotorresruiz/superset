@@ -22,8 +22,8 @@ import {
   useDashboardStateStore,
   useDashboardLayoutStore,
   useDashboardInfoStore,
-  useHandleComponentDrop,
 } from 'src/dashboard/stores';
+import { useHandleComponentDrop } from 'src/dashboard/hooks/useHandleComponentDrop';
 
 type DashboardGridContainerProps = Omit<
   DashboardGridProps,

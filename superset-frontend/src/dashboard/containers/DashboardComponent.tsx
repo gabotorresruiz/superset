@@ -32,8 +32,8 @@ import {
   useDashboardStateStore,
   useDashboardLayoutStore,
   useDashboardInfoStore,
-  useHandleComponentDrop,
 } from 'src/dashboard/stores';
+import { useHandleComponentDrop } from 'src/dashboard/hooks/useHandleComponentDrop';
 
 interface DashboardComponentProps {
   id: string;

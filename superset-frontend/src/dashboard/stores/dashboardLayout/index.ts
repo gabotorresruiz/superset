@@ -18,6 +18,5 @@
  */
 
 export { useDashboardLayoutStore } from './useDashboardLayoutStore';
-export { useHandleComponentDrop } from './useHandleComponentDrop';
 export * from './hooks';
 export * from './actions';
