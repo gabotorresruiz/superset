@@ -33,7 +33,6 @@ import {
   TAB_TYPE,
   TABS_TYPE,
 } from 'src/dashboard/util/componentTypes';
-import updateComponentParentsList from 'src/dashboard/util/updateComponentParentsList';
 import componentIsResizable from 'src/dashboard/util/componentIsResizable';
 import findParentId from 'src/dashboard/util/findParentId';
 import getComponentWidthFromDrop from 'src/dashboard/util/getComponentWidthFromDrop';
@@ -41,7 +40,11 @@ import newComponentFactory from 'src/dashboard/util/newComponentFactory';
 import newEntitiesFromDrop from 'src/dashboard/util/newEntitiesFromDrop';
 import reorderItem from 'src/dashboard/util/dnd-reorder';
 import shouldWrapChildInRow from 'src/dashboard/util/shouldWrapChildInRow';
-import { useDashboardStateStore } from '../dashboardState';
+import {
+  withParentsUpdate,
+  recursivelyDeleteChildren,
+  flagUnsavedChanges,
+} from './helpers';
 
 interface DashboardLayoutState {
   layout: DashboardLayout;
@@ -65,48 +68,6 @@ interface DashboardLayoutActions {
 }
 
 type DashboardLayoutStore = DashboardLayoutState & DashboardLayoutActions;
-
-function withParentsUpdate(layout: DashboardLayout): DashboardLayout {
-  if (layout[DASHBOARD_ROOT_ID]) {
-    updateComponentParentsList({
-      currentComponent: layout[DASHBOARD_ROOT_ID],
-      layout,
-    });
-  }
-  return layout;
-}
-
-function recursivelyDeleteChildren(
-  componentId: string,
-  componentParentId: string,
-  nextComponents: DashboardLayout,
-): void {
-  const component = nextComponents?.[componentId];
-  if (!component) return;
-  delete nextComponents[componentId];
-
-  const { children = [] } = component;
-  children?.forEach?.((childId: string) => {
-    recursivelyDeleteChildren(childId, componentId, nextComponents);
-  });
-
-  const parent = nextComponents?.[componentParentId];
-  if (Array.isArray(parent?.children)) {
-    const componentIndex = parent.children.indexOf(componentId);
-    if (componentIndex > -1) {
-      const nextChildren = [...parent.children];
-      nextChildren.splice(componentIndex, 1);
-      nextComponents[componentParentId] = {
-        ...parent,
-        children: nextChildren,
-      };
-    }
-  }
-}
-
-function flagUnsavedChanges(): void {
-  useDashboardStateStore.getState().setHasUnsavedChanges(true);
-}
 
 export const useDashboardLayoutStore = create<DashboardLayoutStore>()(
   devtools(
