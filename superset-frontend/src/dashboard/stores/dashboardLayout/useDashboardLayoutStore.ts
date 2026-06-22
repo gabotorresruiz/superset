@@ -22,29 +22,16 @@ import { devtools, subscribeWithSelector } from 'zustand/middleware';
 import { temporal } from 'zundo';
 import type { DashboardLayout, LayoutItem } from 'src/dashboard/types';
 import type { DropResult } from 'src/dashboard/components/dnd/dragDroppableConfig';
+import { DASHBOARD_HEADER_ID } from 'src/dashboard/util/constants';
+import { withParentsUpdate, flagUnsavedChanges } from './helpers';
 import {
-  DASHBOARD_ROOT_ID,
-  DASHBOARD_GRID_ID,
-  NEW_COMPONENTS_SOURCE_ID,
-  DASHBOARD_HEADER_ID,
-} from 'src/dashboard/util/constants';
-import {
-  ROW_TYPE,
-  TAB_TYPE,
-  TABS_TYPE,
-} from 'src/dashboard/util/componentTypes';
-import componentIsResizable from 'src/dashboard/util/componentIsResizable';
-import findParentId from 'src/dashboard/util/findParentId';
-import getComponentWidthFromDrop from 'src/dashboard/util/getComponentWidthFromDrop';
-import newComponentFactory from 'src/dashboard/util/newComponentFactory';
-import newEntitiesFromDrop from 'src/dashboard/util/newEntitiesFromDrop';
-import reorderItem from 'src/dashboard/util/dnd-reorder';
-import shouldWrapChildInRow from 'src/dashboard/util/shouldWrapChildInRow';
-import {
-  withParentsUpdate,
-  recursivelyDeleteChildren,
-  flagUnsavedChanges,
-} from './helpers';
+  deleteComponentFromLayout,
+  createComponentInLayout,
+  moveComponentInLayout,
+  createTopLevelTabsInLayout,
+  deleteTopLevelTabsFromLayout,
+  resizeComponentInLayout,
+} from './operations';
 
 interface DashboardLayoutState {
   layout: DashboardLayout;
@@ -73,283 +60,96 @@ export const useDashboardLayoutStore = create<DashboardLayoutStore>()(
   devtools(
     subscribeWithSelector(
       temporal(
-        (set, get) => ({
-          layout: {},
-
-          setLayout: (layout: DashboardLayout) =>
+        (set, get) => {
+          // Each action delegates the tree transform to a pure function in
+          // ./operations, then applies parent-list recompute + the unsaved flag.
+          // A null result means "no change" — skip the set().
+          const applyLayout = (
+            next: DashboardLayout | null,
+            actionName: string,
+          ) => {
+            if (!next) return;
             set(
-              { layout: withParentsUpdate({ ...layout }) },
+              { layout: withParentsUpdate(next) },
               false,
-              'dashboardLayout/setLayout',
-            ),
-
-          updateComponents: (nextComponents: DashboardLayout) => {
-            set(
-              state => ({
-                layout: withParentsUpdate({
-                  ...state.layout,
-                  ...nextComponents,
-                }),
-              }),
-              false,
-              'dashboardLayout/updateComponents',
+              `dashboardLayout/${actionName}`,
             );
             flagUnsavedChanges();
-          },
+          };
 
-          deleteComponent: (id: string, parentId: string | null) => {
-            const state = get().layout;
-            if (!parentId || !id || !state[id] || !state[parentId]) return;
+          return {
+            layout: {},
 
-            const nextComponents: DashboardLayout = { ...state };
-            recursivelyDeleteChildren(id, parentId, nextComponents);
-            const nextParent = nextComponents[parentId];
-            if (
-              nextParent?.type === ROW_TYPE &&
-              nextParent?.children?.length === 0
-            ) {
-              const grandparentId = findParentId({
-                childId: parentId,
-                layout: nextComponents,
-              });
-              if (grandparentId) {
-                recursivelyDeleteChildren(
-                  parentId,
-                  grandparentId,
-                  nextComponents,
-                );
-              }
-            }
-            set(
-              { layout: withParentsUpdate(nextComponents) },
-              false,
-              'dashboardLayout/deleteComponent',
-            );
-            flagUnsavedChanges();
-          },
+            // setLayout seeds the layout (hydration); it does not flag unsaved changes.
+            setLayout: (layout: DashboardLayout) =>
+              set(
+                { layout: withParentsUpdate({ ...layout }) },
+                false,
+                'dashboardLayout/setLayout',
+              ),
 
-          createComponent: (dropResult: DropResult) => {
-            const state = get().layout;
-            const newEntities = newEntitiesFromDrop({
-              dropResult,
-              layout: state,
-            }) as DashboardLayout;
-            set(
-              {
-                layout: withParentsUpdate({ ...state, ...newEntities }),
-              },
-              false,
-              'dashboardLayout/createComponent',
-            );
-            flagUnsavedChanges();
-          },
+            updateComponents: (nextComponents: DashboardLayout) =>
+              applyLayout(
+                { ...get().layout, ...nextComponents },
+                'updateComponents',
+              ),
 
-          moveComponent: (dropResult: DropResult) => {
-            const state = get().layout;
-            const { source, destination, dragging, position } = dropResult;
-            if (!source || !destination || !dragging) return;
+            deleteComponent: (id: string, parentId: string | null) =>
+              applyLayout(
+                deleteComponentFromLayout(get().layout, id, parentId),
+                'deleteComponent',
+              ),
 
-            const nextEntities = reorderItem({
-              entitiesMap: state,
-              source,
-              destination,
-              position,
-            }) as DashboardLayout;
+            createComponent: (dropResult: DropResult) =>
+              applyLayout(
+                createComponentInLayout(get().layout, dropResult),
+                'createComponent',
+              ),
 
-            if (componentIsResizable(nextEntities[dragging.id])) {
-              const nextWidth =
-                getComponentWidthFromDrop({ dropResult, layout: state }) ||
-                undefined;
-              const currentMeta = (nextEntities[dragging.id].meta ||
-                {}) as Record<string, unknown>;
-              if (currentMeta.width !== nextWidth) {
-                nextEntities[dragging.id] = {
-                  ...nextEntities[dragging.id],
-                  meta: {
-                    ...nextEntities[dragging.id].meta,
-                    width: nextWidth as number,
-                  },
-                };
-              }
-            }
+            moveComponent: (dropResult: DropResult) =>
+              applyLayout(
+                moveComponentInLayout(get().layout, dropResult),
+                'moveComponent',
+              ),
 
-            const wrapInRow = shouldWrapChildInRow({
-              parentType: destination.type,
-              childType: dragging.type,
-            });
-            if (wrapInRow) {
-              const destinationEntity = nextEntities[destination.id];
-              const destinationChildren = destinationEntity.children;
-              const newRow = newComponentFactory(ROW_TYPE);
-              newRow.children = [destinationChildren[destination.index]];
-              newRow.parents = (destinationEntity.parents || []).concat(
-                destination.id,
-              );
-              destinationChildren[destination.index] = newRow.id;
-              nextEntities[newRow.id] =
-                newRow as unknown as DashboardLayout[string];
-            }
+            createTopLevelTabs: (dropResult: DropResult) =>
+              applyLayout(
+                createTopLevelTabsInLayout(get().layout, dropResult),
+                'createTopLevelTabs',
+              ),
 
-            set(
-              {
-                layout: withParentsUpdate({ ...state, ...nextEntities }),
-              },
-              false,
-              'dashboardLayout/moveComponent',
-            );
-            flagUnsavedChanges();
-          },
+            deleteTopLevelTabs: () =>
+              applyLayout(
+                deleteTopLevelTabsFromLayout(get().layout),
+                'deleteTopLevelTabs',
+              ),
 
-          createTopLevelTabs: (dropResult: DropResult) => {
-            const state = get().layout;
-            const { source, dragging } = dropResult;
+            resizeComponent: (params: {
+              id: string;
+              width?: number;
+              height?: number;
+            }) =>
+              applyLayout(
+                resizeComponentInLayout(get().layout, params),
+                'resizeComponent',
+              ),
 
-            const rootComponent = state[DASHBOARD_ROOT_ID];
-            const topLevelId = rootComponent.children[0];
-            const topLevelComponent = state[topLevelId];
-
-            let nextLayout: DashboardLayout;
-            if (source.id !== NEW_COMPONENTS_SOURCE_ID) {
-              // component already exists
-              const draggingTabs = state[dragging.id];
-              const draggingTabId = draggingTabs.children[0];
-              const draggingTab = state[draggingTabId];
-              const childrenToMove = [...topLevelComponent.children].filter(
-                id => id !== dragging.id,
-              );
-              nextLayout = {
-                ...state,
-                [DASHBOARD_ROOT_ID]: {
-                  ...rootComponent,
-                  children: [dragging.id],
-                },
-                [topLevelId]: { ...topLevelComponent, children: [] },
-                [draggingTabId]: {
-                  ...draggingTab,
-                  children: [...draggingTab.children, ...childrenToMove],
-                },
-              };
-            } else {
-              const newEntities = newEntitiesFromDrop({
-                dropResult,
-                layout: state,
-              }) as DashboardLayout;
-              const newEntitiesArray = Object.values(newEntities);
-              const tabComponent = newEntitiesArray.find(
-                component => component.type === TAB_TYPE,
-              );
-              const tabsComponent = newEntitiesArray.find(
-                component => component.type === TABS_TYPE,
-              );
-              if (tabComponent && tabsComponent) {
-                tabComponent.children = [...topLevelComponent.children];
-                newEntities[topLevelId] = {
-                  ...topLevelComponent,
-                  children: [],
-                };
-                newEntities[DASHBOARD_ROOT_ID] = {
-                  ...rootComponent,
-                  children: [tabsComponent.id],
-                };
-              }
-              nextLayout = { ...state, ...newEntities };
-            }
-
-            set(
-              { layout: withParentsUpdate(nextLayout) },
-              false,
-              'dashboardLayout/createTopLevelTabs',
-            );
-            flagUnsavedChanges();
-          },
-
-          deleteTopLevelTabs: () => {
-            const state = get().layout;
-            const rootComponent = state[DASHBOARD_ROOT_ID];
-            const topLevelId = rootComponent.children[0];
-            const topLevelTabs = state[topLevelId];
-            if (topLevelTabs.type !== TABS_TYPE) return;
-
-            let childrenToMove: string[] = [];
-            const nextEntities: DashboardLayout = { ...state };
-            topLevelTabs.children.forEach((tabId: string) => {
-              const tabComponent = state[tabId];
-              childrenToMove = [...childrenToMove, ...tabComponent.children];
-              delete nextEntities[tabId];
-            });
-            delete nextEntities[topLevelId];
-            nextEntities[DASHBOARD_ROOT_ID] = {
-              ...rootComponent,
-              children: [DASHBOARD_GRID_ID],
-            };
-            nextEntities[DASHBOARD_GRID_ID] = {
-              ...state[DASHBOARD_GRID_ID],
-              children: childrenToMove,
-            };
-
-            set(
-              { layout: withParentsUpdate(nextEntities) },
-              false,
-              'dashboardLayout/deleteTopLevelTabs',
-            );
-            flagUnsavedChanges();
-          },
-
-          resizeComponent: ({
-            id,
-            width,
-            height,
-          }: {
-            id: string;
-            width?: number;
-            height?: number;
-          }) => {
-            const state = get().layout;
-            const component = state[id];
-            if (!component) return;
-            const widthChanged = width && component.meta.width !== width;
-            const heightChanged = height && component.meta.height !== height;
-            if (!widthChanged && !heightChanged) return;
-
-            set(
-              {
-                layout: withParentsUpdate({
-                  ...state,
-                  [id]: {
-                    ...component,
-                    meta: {
-                      ...component.meta,
-                      width: width || component.meta.width,
-                      height: height || component.meta.height,
-                    },
-                  },
-                }),
-              },
-              false,
-              'dashboardLayout/resizeComponent',
-            );
-            flagUnsavedChanges();
-          },
-
-          updateDashboardTitle: (text: string) => {
-            const state = get().layout;
-            const header = state[DASHBOARD_HEADER_ID];
-            set(
-              {
-                layout: withParentsUpdate({
+            updateDashboardTitle: (text: string) => {
+              const state = get().layout;
+              const header = state[DASHBOARD_HEADER_ID];
+              applyLayout(
+                {
                   ...state,
                   [DASHBOARD_HEADER_ID]: {
                     ...header,
                     meta: { ...header?.meta, text },
                   } as LayoutItem,
-                }),
-              },
-              false,
-              'dashboardLayout/updateDashboardTitle',
-            );
-            flagUnsavedChanges();
-          },
-        }),
+                },
+                'updateDashboardTitle',
+              );
+            },
+          };
+        },
         {
           limit: 52, // UNDO_LIMIT (50) + 2 to match redux-undo behavior
           equality: (pastState, currentState) =>
