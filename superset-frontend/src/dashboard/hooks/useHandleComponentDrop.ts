@@ -17,9 +17,9 @@
  * under the License.
  */
 import { useCallback } from 'react';
-import { useDispatch, useStore } from 'react-redux';
+import { useStore } from 'react-redux';
 import { t } from '@apache-superset/core/translation';
-import { addWarningToast } from 'src/components/MessageToasts/actions';
+import { useToasts } from 'src/components/MessageToasts/withToasts';
 import { TABS_TYPE, ROW_TYPE } from 'src/dashboard/util/componentTypes';
 import {
   DASHBOARD_ROOT_ID,
@@ -35,8 +35,9 @@ import { useDashboardLayoutStore } from 'src/dashboard/stores';
 // Routes a drag-drop to the right layout-store mutation and emits warnings.
 // Replaces the Redux handleComponentDrop thunk.
 export function useHandleComponentDrop() {
-  const dispatch = useDispatch();
-  // Context-provided store: direct src/views/store import cycles via the stores barrel.
+  const { addWarningToast } = useToasts();
+  // Still react-redux: dashboardFilters (legacy filter-box state) is intentionally
+  // not migrated off Redux, so it's read from the context-provided store here.
   const reduxStore = useStore<RootState>();
 
   return useCallback(
@@ -50,11 +51,9 @@ export function useHandleComponentDrop() {
       const layout = () => useDashboardLayoutStore.getState().layout;
 
       if (dropOverflowsParent(dropResult, layout())) {
-        dispatch(
-          addWarningToast(
-            t(
-              `There is not enough space for this component. Try decreasing its width, or increasing the destination width.`,
-            ),
+        addWarningToast(
+          t(
+            `There is not enough space for this component. Try decreasing its width, or increasing the destination width.`,
           ),
         );
         return;
@@ -79,9 +78,7 @@ export function useHandleComponentDrop() {
         source.id === rootChildId &&
         destination.id !== rootChildId
       ) {
-        dispatch(
-          addWarningToast(t('Can not move top level tab into nested tabs')),
-        );
+        addWarningToast(t('Can not move top level tab into nested tabs'));
         return;
       } else if (
         destination &&
@@ -124,14 +121,12 @@ export function useHandleComponentDrop() {
             ),
           })
         ) {
-          dispatch(
-            addWarningToast(
-              t('This chart has been moved to a different filter scope.'),
-            ),
+          addWarningToast(
+            t('This chart has been moved to a different filter scope.'),
           );
         }
       }
     },
-    [dispatch, reduxStore],
+    [addWarningToast, reduxStore],
   );
 }
