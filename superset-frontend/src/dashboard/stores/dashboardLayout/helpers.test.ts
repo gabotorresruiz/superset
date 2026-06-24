@@ -17,30 +17,18 @@
  * under the License.
  */
 
-import type {
-  DashboardLayout,
-  LayoutItem,
-  LayoutItemMeta,
-} from 'src/dashboard/types';
+import type { DashboardLayout } from 'src/dashboard/types';
 import { DASHBOARD_ROOT_ID } from 'src/dashboard/util/constants';
 import {
   withParentsUpdate,
   recursivelyDeleteChildren,
   flagUnsavedChanges,
 } from './helpers';
+import { makeLayoutItem as item } from './fixtures';
 import { useDashboardStateStore } from '../dashboardState';
 
 // helpers/flagUnsavedChanges touches the dashboardState store; load real zustand.
 jest.unmock('zustand');
-
-const item = (
-  partial: Partial<LayoutItem> & Pick<LayoutItem, 'id'>,
-): LayoutItem => ({
-  type: 'CHART',
-  children: [],
-  meta: {} as LayoutItemMeta,
-  ...partial,
-});
 
 describe('recursivelyDeleteChildren', () => {
   test('removes the node, its descendants, and detaches it from its parent', () => {

@@ -17,13 +17,17 @@
  * under the License.
  */
 
-import type { LayoutItem, LayoutItemMeta } from 'src/dashboard/types';
+import type { LayoutItemMeta } from 'src/dashboard/types';
 import type { DropResult } from 'src/dashboard/components/dnd/dragDroppableConfig';
 import {
   DASHBOARD_ROOT_ID,
   DASHBOARD_GRID_ID,
 } from 'src/dashboard/util/constants';
-import { TABS_TYPE, TAB_TYPE } from 'src/dashboard/util/componentTypes';
+import {
+  TABS_TYPE,
+  TAB_TYPE,
+  CHART_TYPE,
+} from 'src/dashboard/util/componentTypes';
 import {
   deleteComponentFromLayout,
   deleteTopLevelTabsFromLayout,
@@ -31,19 +35,11 @@ import {
   moveComponentInLayout,
   createTopLevelTabsInLayout,
 } from './operations';
+import { makeLayoutItem as item } from './fixtures';
 
 // operations import ./helpers, which pulls in the dashboardState store; load the
 // real zustand so that module graph initializes (the operations themselves are pure).
 jest.unmock('zustand');
-
-const item = (
-  partial: Partial<LayoutItem> & Pick<LayoutItem, 'id'>,
-): LayoutItem => ({
-  type: 'CHART',
-  children: [],
-  meta: {} as LayoutItemMeta,
-  ...partial,
-});
 
 describe('deleteComponentFromLayout', () => {
   test('removes the component and detaches it from its parent', () => {
@@ -189,6 +185,79 @@ describe('moveComponentInLayout', () => {
     expect(
       moveComponentInLayout({}, dropResult as unknown as DropResult),
     ).toBeNull();
+  });
+
+  test('wraps a chart dropped into a tab in a new Row', () => {
+    const layout = {
+      GRID_SRC: item({
+        id: 'GRID_SRC',
+        type: 'GRID',
+        children: ['CHART_X'],
+        meta: { width: 12 } as LayoutItemMeta,
+      }),
+      TAB_DEST: item({
+        id: 'TAB_DEST',
+        type: TAB_TYPE,
+        children: [],
+        meta: { width: 12 } as LayoutItemMeta,
+      }),
+      CHART_X: item({
+        id: 'CHART_X',
+        type: CHART_TYPE,
+        meta: { width: 4 } as LayoutItemMeta,
+      }),
+    };
+    const dropResult = {
+      source: { id: 'GRID_SRC', type: 'GRID', index: 0 },
+      destination: { id: 'TAB_DEST', type: TAB_TYPE, index: 0 },
+      dragging: { id: 'CHART_X', type: CHART_TYPE },
+    } as unknown as DropResult;
+
+    const next = moveComponentInLayout(layout, dropResult)!;
+    expect(next).not.toBeNull();
+
+    // The chart left the grid; the tab now holds a single NEW Row that wraps it.
+    expect(next.GRID_SRC.children).toEqual([]);
+    expect(next.TAB_DEST.children).toHaveLength(1);
+    const wrapId = next.TAB_DEST.children[0];
+    expect(wrapId).not.toBe('CHART_X');
+    expect(next[wrapId].type).toBe('ROW');
+    expect(next[wrapId].children).toEqual(['CHART_X']);
+  });
+
+  test('reorders within the same container without wrapping', () => {
+    const layout = {
+      ROW: item({
+        id: 'ROW',
+        type: 'ROW',
+        children: ['A', 'B', 'C'],
+        meta: { width: 12 } as LayoutItemMeta,
+      }),
+      A: item({
+        id: 'A',
+        type: CHART_TYPE,
+        meta: { width: 4 } as LayoutItemMeta,
+      }),
+      B: item({
+        id: 'B',
+        type: CHART_TYPE,
+        meta: { width: 4 } as LayoutItemMeta,
+      }),
+      C: item({
+        id: 'C',
+        type: CHART_TYPE,
+        meta: { width: 4 } as LayoutItemMeta,
+      }),
+    };
+    const dropResult = {
+      source: { id: 'ROW', type: 'ROW', index: 0 },
+      destination: { id: 'ROW', type: 'ROW', index: 2 },
+      dragging: { id: 'A', type: CHART_TYPE },
+    } as unknown as DropResult;
+
+    const next = moveComponentInLayout(layout, dropResult)!;
+    // Same-container reorder (parent is a Row, so no row-wrapping): A moves to the end.
+    expect(next.ROW.children).toEqual(['B', 'C', 'A']);
   });
 });
 
