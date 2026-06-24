@@ -29,7 +29,11 @@ afterEach(() => {
 test('loadAccessOptions fetches owners, filters inactive, and reports the API count', async () => {
   fetchMock.get('glob:*/api/v1/dashboard/related/owners*', {
     result: [
-      { value: 1, text: 'Alice', extra: { active: true, email: 'a@example.com' } },
+      {
+        value: 1,
+        text: 'Alice',
+        extra: { active: true, email: 'a@example.com' },
+      },
       { value: 2, text: 'Bob', extra: { active: false } },
     ],
     count: 25,
