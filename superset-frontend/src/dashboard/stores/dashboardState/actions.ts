@@ -49,7 +49,7 @@ export const toggleExpandSlice = (sliceId: number): void =>
 
 export const setRefreshFrequency = (
   frequency: number,
-  isPersistent: boolean,
+  isPersistent?: boolean,
 ): void =>
   useDashboardStateStore
     .getState()

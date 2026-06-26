@@ -431,6 +431,21 @@ test('should undo when past actions exist', () => {
   );
 });
 
+test('undo does not clear unsaved changes flagged by non-layout edits', () => {
+  setup(editableState);
+  createLayoutHistory();
+  // A non-layout edit (theme/properties) marks the dashboard dirty.
+  useDashboardStateStore.setState({ hasUnsavedChanges: true });
+
+  userEvent.click(screen.getByTestId('undo-action'));
+
+  // Layout history is rewound, but the non-layout dirty flag must survive.
+  expect(useDashboardLayoutStore.temporal.getState().pastStates).toHaveLength(
+    0,
+  );
+  expect(useDashboardStateStore.getState().hasUnsavedChanges).toBe(true);
+});
+
 test('should render the "Redo" action as disabled', () => {
   setup(editableState);
   expect(screen.getByTestId('redo-action').parentElement).toBeDisabled();

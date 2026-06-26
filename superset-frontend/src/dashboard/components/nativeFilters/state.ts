@@ -36,6 +36,7 @@ import {
 import { FilterElement } from './FilterBar/FilterControls/types';
 import { ActiveTabs, FilterConfigItem } from '../../types';
 import { CHART_TYPE, TAB_TYPE, TABS_TYPE } from '../../util/componentTypes';
+import getChartIdsFromLayout from '../../util/getChartIdsFromLayout';
 import { DASHBOARD_ROOT_ID } from '../../util/constants';
 import { isChartCustomizationId } from './FiltersConfigModal/utils';
 import {
@@ -121,11 +122,7 @@ export function useChartCustomizationConfiguration() {
   const allCustomizations = useChartCustomizationConfig() || EMPTY_ARRAY;
   const dashboardLayout = useDashboardLayout();
   return useMemo(() => {
-    const dashboardChartIds = new Set(
-      Object.values(dashboardLayout)
-        .filter(item => item.type === CHART_TYPE && item.meta?.chartId)
-        .map(item => item.meta.chartId!),
-    );
+    const dashboardChartIds = new Set(getChartIdsFromLayout(dashboardLayout));
     return filterCustomizationsForDashboard(
       allCustomizations,
       dashboardChartIds,

@@ -62,7 +62,7 @@ import {
   useCrossFiltersEnabled,
   useSlice,
   useFilterEntries,
-  useDashboardInfo,
+  useDashboardId,
   useDashboardConf,
   useCanExplore,
   useCanShare,
@@ -238,7 +238,7 @@ const Chart = (props: ChartProps) => {
         state.datasources[chart.form_data.datasource]) ||
       PLACEHOLDER_DATASOURCE,
   );
-  const dashboardInfo = useDashboardInfo();
+  const dashboardId = useDashboardId();
   const showChartTimestamps: boolean = useShowChartTimestamps();
   const suppressLoadingSpinner = useIsAutoRefreshing();
 
@@ -445,7 +445,7 @@ const Chart = (props: ChartProps) => {
     ],
   );
 
-  (formData as JsonObject).dashboardId = dashboardInfo.id;
+  (formData as JsonObject).dashboardId = dashboardId;
 
   const exportTable = useCallback(
     async (format: string, isFullCSV: boolean, isPivot = false) => {

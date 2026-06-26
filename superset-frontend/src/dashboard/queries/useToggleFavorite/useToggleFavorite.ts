@@ -37,13 +37,14 @@ export function useToggleFavorite(id: number) {
       return apiCall.then(() => isStarred);
     },
     onSuccess: isStarred => {
-      // Only update state if this is still the current dashboard.
-      if (!isCurrentDashboard(id)) return;
       const nowStarred = !isStarred;
-      useDashboardStateStore.getState().setIsStarred(nowStarred);
-      // Keep the favorite-status query cache in sync, else a Header remount
-      // mirrors the stale cached value back into the store.
+      // Always sync the cache (even if the user navigated away) so a later visit
+      // within staleTime doesn't mirror a stale value back into the store.
       queryClient.setQueryData(dashboardKeys.favoriteStatus(id), nowStarred);
+      // Only touch the live store while this is still the current dashboard.
+      if (isCurrentDashboard(id)) {
+        useDashboardStateStore.getState().setIsStarred(nowStarred);
+      }
     },
     onError: () => {
       // Only show error if this is still the current dashboard.

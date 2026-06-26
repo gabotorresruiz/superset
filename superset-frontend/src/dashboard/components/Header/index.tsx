@@ -88,7 +88,6 @@ import {
   undoLayout,
   redoLayout,
   clearLayoutHistory,
-  getUndoLength,
   updateDashboardTitle as updateDashboardTitleAction,
   useDashboardInfo,
   useCustomCss,
@@ -102,7 +101,6 @@ import {
   useColorScheme,
   useIsStarred,
   useMaxUndoHistoryExceeded,
-  useUpdatedColorScheme,
   useLastModifiedTime,
   setHasUnsavedChanges,
   setDashboardInfo,
@@ -245,7 +243,6 @@ const Header = (): JSX.Element => {
   useFavoriteStatus(dashboardInfo.id, showFaveStar);
   const { mutate: toggleFavorite } = useToggleFavorite(dashboardInfo.id);
   const maxUndoHistoryExceeded = useMaxUndoHistoryExceeded();
-  const updatedColorScheme = useUpdatedColorScheme();
   const lastModifiedTime = useLastModifiedTime();
   const isLoading = useSelector((state: HeaderRootState) =>
     Object.values(state.charts).some(chart => {
@@ -267,15 +264,10 @@ const Header = (): JSX.Element => {
   const themeId = dashboardInfo.theme ? dashboardInfo.theme.id : null;
   // Undo/redo + history run on the zundo temporal store, not redux-undo.
   const onUndo = useCallback(() => {
+    // Undo only rewinds layout history; it must not clear the dirty flag, which
+    // also covers non-layout edits (theme, title, properties).
     undoLayout();
-    if (
-      getUndoLength() === 0 &&
-      !maxUndoHistoryExceeded &&
-      !updatedColorScheme
-    ) {
-      setHasUnsavedChanges(false);
-    }
-  }, [maxUndoHistoryExceeded, updatedColorScheme]);
+  }, []);
   const onRedo = useCallback(() => {
     redoLayout();
     setHasUnsavedChanges(true);

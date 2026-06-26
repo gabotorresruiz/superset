@@ -16,6 +16,5 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useDashboardStateStore } from 'src/dashboard/stores';
-
-export const useChartIds = () => useDashboardStateStore(s => s.sliceIds);
+// A dashboard's chart ids are its slice ids; alias the canonical store hook.
+export { useSliceIds as useChartIds } from 'src/dashboard/stores';

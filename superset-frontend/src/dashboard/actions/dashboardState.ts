@@ -605,7 +605,6 @@ export function addSliceToDashboard(
         ),
       );
     }
-    useDashboardSlicesStore.getState().addSlice(selectedSlice);
     const form_data = {
       ...selectedSlice.form_data,
       slice_id: selectedSlice.slice_id,
@@ -622,6 +621,9 @@ export function addSliceToDashboard(
       dispatch(addChart(newChart, id)),
       dispatch(fetchDatasourceMetadata(form_data.datasource as string)),
     ]).then(() => {
+      // Commit slice metadata and id together on success, so a rejected add
+      // can't leave slices and sliceIds out of sync.
+      useDashboardSlicesStore.getState().addSlice(selectedSlice);
       useDashboardStateStore
         .getState()
         .addSliceId((selectedSlice as Slice).slice_id);

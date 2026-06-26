@@ -127,6 +127,31 @@ test('does NOT update starred when the dashboard ID changed before the response 
   post.mockRestore();
 });
 
+test('still syncs the favorite-status cache when the dashboard changed before the response resolved', async () => {
+  const requestedId = 123;
+  setCurrentDashboard(456);
+  // Stale pre-toggle value for the dashboard the user toggled then left; it must
+  // still be corrected so a later visit doesn't mirror it back into the store.
+  queryClient.setQueryData(dashboardKeys.favoriteStatus(requestedId), false);
+  const post = jest
+    .spyOn(SupersetClient, 'post')
+    .mockResolvedValue({} as never);
+
+  const { result } = renderHook(() => useToggleFavorite(requestedId), {
+    wrapper,
+  });
+  result.current.mutate(false);
+
+  await waitFor(() =>
+    expect(
+      queryClient.getQueryData(dashboardKeys.favoriteStatus(requestedId)),
+    ).toBe(true),
+  );
+  // The live store stays untouched because it reflects the current dashboard.
+  expect(useDashboardStateStore.getState().isStarred).toBe(false);
+  post.mockRestore();
+});
+
 test('shows a danger toast on error when the dashboard ID still matches', async () => {
   const id = 123;
   setCurrentDashboard(id);
