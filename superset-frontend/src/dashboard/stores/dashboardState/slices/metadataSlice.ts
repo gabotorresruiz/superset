@@ -229,7 +229,11 @@ export const createMetadataSlice: StateCreator<
       {
         refreshFrequency,
         shouldPersistRefreshFrequency: isPersistent,
-        hasUnsavedChanges: isPersistent,
+        // Only on an explicit user change; the unmount/reset path passes no
+        // `isPersistent` and must not clobber other unsaved edits (e.g. theme).
+        ...(typeof isPersistent === 'boolean' && {
+          hasUnsavedChanges: isPersistent,
+        }),
       },
       false,
       'dashboardState/setRefreshFrequency',
